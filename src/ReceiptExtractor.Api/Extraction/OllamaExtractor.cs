@@ -1,0 +1,152 @@
+using System.Globalization;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Microsoft.Extensions.Options;
+using ReceiptExtractor.Api.Validation;
+
+namespace ReceiptExtractor.Api.Extraction;
+
+public sealed class OllamaOptions
+{
+    public string BaseUrl { get; set; } = "http://localhost:11434";
+    public string Model { get; set; } = "qwen3-vl:8b-instruct";
+    public string KeepAlive { get; set; } = "10m";   // keep the model loaded between receipts
+    public int ContextLength { get; set; } = 8192;   // the image alone can take ~4000 tokens
+}
+
+public sealed record ExtractionResult(ReceiptFields Fields, string? Category, string ModelOutput);
+
+public interface IReceiptExtractor
+{
+    Task<ExtractionResult> ExtractAsync(string imagePath, CancellationToken ct);
+}
+
+public sealed class ExtractionException(string message) : Exception(message);
+
+/// <summary>
+/// Sends a receipt image to a local vision model via Ollama's /api/chat and parses the JSON it returns.
+/// Same model, prompt and schema as eval/try_vision.py (the approach that won the bake-off).
+/// </summary>
+public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> options) : IReceiptExtractor
+{
+    // Keep in sync with PROMPT in eval/try_vision.py (plus the category line).
+    public const string Prompt = """
+        You are reading a receipt from the Philippines.
+        Copy amounts exactly as printed, including centavos (e.g. 1124.46)
+        Extract these fields:
+        - merchant: the store or company name as printed at the top. For online
+          orders, the marketplace (e.g. Lazada, Shopee), not the seller's shop name
+        - date: the transaction date, converted to YYYY-MM-DD
+        - total: the final amount paid (TOTAL / AMOUNT DUE), not cash tendered or change
+        - vat_amount: the "VAT Amount" / "12% VAT" line; 0 if the receipt has none
+        - vatable_sales: the "VATable Sales" line; 0 if the receipt has none
+        - category: the best fit of Food, Transport, Groceries, Health, Utilities, Other
+        Amounts are in PHP. Numbers only, no commas or peso signs.
+        Use null if a field is unreadable.
+        """;
+
+    // JSON schema Ollama uses to force the shape of the answer ("structured outputs").
+    private static readonly JsonElement Schema = JsonDocument.Parse("""
+        {
+          "type": "object",
+          "properties": {
+            "merchant":      { "anyOf": [ { "type": "string" }, { "type": "null" } ] },
+            "date":          { "anyOf": [ { "type": "string" }, { "type": "null" } ] },
+            "total":         { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
+            "vat_amount":    { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
+            "vatable_sales": { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
+            "category":      { "type": "string",
+                               "enum": [ "Food", "Transport", "Groceries", "Health", "Utilities", "Other" ] }
+          },
+          "required": [ "merchant", "date", "total", "vat_amount", "vatable_sales", "category" ]
+        }
+        """).RootElement.Clone();
+
+    private static readonly JsonSerializerOptions ModelJson = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString,
+    };
+
+    public async Task<ExtractionResult> ExtractAsync(string imagePath, CancellationToken ct)
+    {
+        var opts = options.Value;
+        var image = await File.ReadAllBytesAsync(imagePath, ct);
+
+        var request = new
+        {
+            model = opts.Model,
+            stream = false,
+            think = false,                 // answer directly, no "thinking" output
+            keep_alive = opts.KeepAlive,
+            format = Schema,
+            options = new { temperature = 0, num_ctx = opts.ContextLength }, // same input -> same output
+            messages = new[]
+            {
+                new { role = "user", content = Prompt, images = new[] { Convert.ToBase64String(image) } },
+            },
+        };
+
+        using var response = await http.PostAsJsonAsync("/api/chat", request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            throw new ExtractionException($"Ollama returned {(int)response.StatusCode}: {body}");
+        }
+
+        var chat = await response.Content.ReadFromJsonAsync<ChatResponse>(ct)
+                   ?? throw new ExtractionException("Ollama returned an empty response.");
+
+        var content = chat.Message?.Content;
+        if (string.IsNullOrWhiteSpace(content))
+            throw new ExtractionException($"Model returned no answer (done_reason={chat.DoneReason}).");
+
+        return ParseModelOutput(content);
+    }
+
+    /// <summary>Turns the model's JSON into clean fields. Public so it can be unit-tested without Ollama.</summary>
+    public static ExtractionResult ParseModelOutput(string json)
+    {
+        ModelReceipt model;
+        try
+        {
+            model = JsonSerializer.Deserialize<ModelReceipt>(json, ModelJson)
+                    ?? throw new ExtractionException("Model returned 'null'.");
+        }
+        catch (JsonException ex)
+        {
+            throw new ExtractionException($"Model returned invalid JSON: {ex.Message}");
+        }
+
+        DateOnly? date = DateOnly.TryParseExact(model.Date?.Trim(), "yyyy-MM-dd",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out var d) ? d : null;
+
+        var fields = new ReceiptFields(
+            MerchantRules.Normalize(model.Merchant),
+            date,
+            Money(model.Total),
+            Money(model.VatAmount),
+            Money(model.VatableSales));
+
+        return new ExtractionResult(fields, Categories.Normalize(model.Category), json);
+    }
+
+    private static decimal? Money(decimal? value) =>
+        value is { } v ? Math.Round(v, 2, MidpointRounding.AwayFromZero) : null;
+
+    private sealed class ModelReceipt
+    {
+        [JsonPropertyName("merchant")] public string? Merchant { get; set; }
+        [JsonPropertyName("date")] public string? Date { get; set; }
+        [JsonPropertyName("total")] public decimal? Total { get; set; }
+        [JsonPropertyName("vat_amount")] public decimal? VatAmount { get; set; }
+        [JsonPropertyName("vatable_sales")] public decimal? VatableSales { get; set; }
+        [JsonPropertyName("category")] public string? Category { get; set; }
+    }
+
+    private sealed record ChatResponse(
+        [property: JsonPropertyName("message")] ChatMessage? Message,
+        [property: JsonPropertyName("done_reason")] string? DoneReason);
+
+    private sealed record ChatMessage([property: JsonPropertyName("content")] string? Content);
+}

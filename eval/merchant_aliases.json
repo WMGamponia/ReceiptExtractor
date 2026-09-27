@@ -1,0 +1,5 @@
+{
+  "_comment": "Names in the same list are the same merchant (store name or company name both count). Matching ignores case, spaces, punctuation and Corp/Inc.",
+  "Robinsons Supermarket Corporation": ["THE MARKETPLACE", "Robinsons Supermarket"],
+  "DataBlitz": ["Orion Cepheid"]
+}

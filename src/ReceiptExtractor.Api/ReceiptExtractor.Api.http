@@ -1,0 +1,35 @@
+@Api = http://localhost:5036
+
+### List all receipts
+GET {{Api}}/api/receipts
+
+### Upload a receipt (change the path to one of your images)
+POST {{Api}}/api/receipts
+Content-Type: multipart/form-data; boundary=receipt
+
+--receipt
+Content-Disposition: form-data; name="file"; filename="20251220_DataBlitz.jpg"
+Content-Type: image/jpeg
+
+< ../../datasets/labels/20251220_DataBlitz.jpg
+--receipt--
+
+### Check one receipt (paste the id from the upload response)
+@id = 00000000-0000-0000-0000-000000000000
+GET {{Api}}/api/receipts/{{id}}
+
+### Confirm / correct the fields
+PUT {{Api}}/api/receipts/{{id}}
+Content-Type: application/json
+
+{
+  "merchant": "DataBlitz",
+  "date": "2025-12-20",
+  "total": 10495.00,
+  "vatAmount": 1124.46,
+  "vatableSales": 9370.54,
+  "category": "Other"
+}
+
+### Retry a failed extraction
+POST {{Api}}/api/receipts/{{id}}/retry

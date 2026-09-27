@@ -1,0 +1,9 @@
+{
+  "merchant": "Robinsons Supermarket Corporation",
+  "date": "2026-09-11",
+  "total": 918.00,
+  "vat_amount": 98.36,
+  "vatable_sales": 819.64,
+  "category": "food",
+  "notes": ""
+}

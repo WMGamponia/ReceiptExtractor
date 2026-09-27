@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Contains full OCR text of receipts (TINs, names)
+eval/preds/
+
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+
+# Local app data (your receipts)
+*.db
+*.db-shm
+*.db-wal
+storage/

@@ -1,0 +1,6 @@
+ollama>=0.5.1
+pydantic>=2
+pytesseract
+pillow
+paddlepaddle
+paddleocr>=3
