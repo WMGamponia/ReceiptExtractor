@@ -6,7 +6,7 @@ namespace ReceiptExtractor.Api.Validation;
 /// </summary>
 public static class ReceiptValidator
 {
-    /// <summary>PH receipts are VAT-inclusive at 12%, so VAT = total × 12/112.</summary>
+    /// <summary>PH VAT is 12% on top of VATable sales (so VAT = VATable sales × 12%).</summary>
     public const decimal VatRate = 0.12m;
 
     private const decimal Tolerance = 0.02m; // allow 2 centavos of rounding
@@ -25,20 +25,37 @@ public static class ReceiptValidator
         else if (f.Date > today)
             flags.Add($"Date {f.Date:yyyy-MM-dd} is in the future.");
 
-        var vat = f.VatAmount ?? 0;
-        var vatable = f.VatableSales ?? 0;
-        var hasVat = vat != 0 || vatable != 0;
+        if (f.Total is { } total)
+            flags.AddRange(VatFlags(total, f.VatAmount ?? 0, f.VatableSales ?? 0, f.VatExemptSales ?? 0, f.Discount ?? 0));
 
-        if (hasVat && f.Total is { } total)
+        return flags;
+    }
+
+    /// <summary>
+    /// The VAT breakdown on a PH receipt adds up to the total:
+    ///   VATable sales + VAT + VAT-exempt sales = total, or
+    ///   ... − discount = total   (senior citizen / PWD discounts are taken off after the breakdown).
+    /// Promo discounts are usually applied before the breakdown, so either form is accepted.
+    /// </summary>
+    public static List<string> VatFlags(decimal total, decimal vat, decimal vatable, decimal exempt, decimal discount)
+    {
+        var flags = new List<string>();
+        if (vat == 0 && vatable == 0 && exempt == 0)
+            return flags; // no breakdown printed (non-VAT receipt): nothing to check
+
+        var breakdown = vatable + vat + exempt;
+        var adds = Math.Abs(breakdown - total) <= Tolerance
+                   || (discount != 0 && Math.Abs(breakdown - discount - total) <= Tolerance);
+        if (!adds)
         {
-            if (Math.Abs(vatable + vat - total) > Tolerance)
-                flags.Add($"VATable sales + VAT = {vatable + vat:N2}, but total is {total:N2}.");
-
-            var expectedVat = Math.Round(total * VatRate / (1 + VatRate), 2);
-            if (Math.Abs(vat - expectedVat) > Tolerance)
-                flags.Add($"VAT {vat:N2} isn't 12% of the total (expected {expectedVat:N2}). " +
-                          "Could be a misread, or a discount / VAT-exempt items.");
+            var parts = exempt != 0 ? "VATable sales + VAT + VAT-exempt sales" : "VATable sales + VAT";
+            var less = discount != 0 ? $" ({breakdown - discount:N2} after the {discount:N2} discount)" : "";
+            flags.Add($"{parts} = {breakdown:N2}{less}, but total is {total:N2}.");
         }
+
+        var expectedVat = Math.Round(vatable * VatRate, 2, MidpointRounding.AwayFromZero);
+        if (Math.Abs(vat - expectedVat) > Tolerance)
+            flags.Add($"VAT {vat:N2} isn't 12% of VATable sales (expected {expectedVat:N2}). Could be a misread.");
 
         return flags;
     }
