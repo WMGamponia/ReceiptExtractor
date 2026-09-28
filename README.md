@@ -2,7 +2,7 @@
 
 Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaging (step 7): Windows exe and `docker compose up` work; seed data is next.
+> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaged (step 7): a single Windows exe, or `docker compose up` with demo data.
 >
 > _Last updated: 2026-09-28_
 
@@ -109,7 +109,15 @@ Requirements: [Docker](https://www.docker.com/products/docker-desktop/) (Docker 
 docker compose up --build
 ```
 
-Open http://localhost:5080. This runs the app (API + web app + SQLite database in the `app-data` volume) without the AI model, so it's a ~1 GB download: every screen works, but uploaded receipts fail with "Can't reach Ollama" until you add a model, in one of two ways:
+Open http://localhost:5080. This runs the app (API + web app + SQLite database in the `app-data` volume) without the AI model, so it's a ~1 GB download: every screen works, but uploaded receipts fail with "Can't reach Ollama" until you add a model (below).
+
+**Demo data:** on first start the Docker app fills its empty database with receipts to try things on:
+- **To review:** the 7 hand-labeled receipts from the eval, with their photos and the correct values, ready to open and confirm.
+- **Confirmed:** 40 made-up receipts over the past 12 months across all categories (Jollibee, Petron, Meralco, Mercury Drug with a senior citizen discount, a sari-sari store without VAT…), so the Spending page, the chart and **Export CSV** have data. They show a "Sample receipt" picture instead of a photo.
+
+Delete them from the Receipts page whenever you like; a database that has receipts is never seeded again. The exe and `dotnet run` don't seed (`Seed:Enabled` is off).
+
+Adding a model, one of two ways:
 
 | | Command | Download | Speed per receipt |
 |---|---|---|---|
@@ -196,6 +204,7 @@ src/ReceiptExtractor.Api/
   Data/          EF Core entity + DbContext (SQLite)
   Summaries/     period math (ISO weeks, calendar quarters) + GET /api/summary
   Hosting/       desktop mode: data folder next to the exe, opens the browser, checks Ollama
+  Seeding/       demo data for an empty database (Docker): labeled receipts + made-up ones
   Export/        CSV export (Excel-friendly: UTF-8 BOM, formula-safe text)
 tests/ReceiptExtractor.Tests/   xUnit tests
 web/

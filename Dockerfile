@@ -25,11 +25,15 @@ COPY --from=api /out ./
 # The database and receipt images go in /app/data ("data" next to the app, Hosting/DesktopMode.cs);
 # docker-compose.yml keeps it in a volume. Created here so the non-root user can write to it.
 RUN mkdir /app/data && chown "$APP_UID" /app/data
+# Demo data for an empty database (Seeding/): the labeled receipts and their photos. Used when Seed__Enabled=true.
+COPY datasets/labels/ /app/seed/labels/
+COPY datasets/receipts/ /app/seed/receipts/
 USER $APP_UID
 # Same port as the exe, so the address it prints (http://localhost:5080) is right with the default port mapping.
 # (HTTP_PORTS is cleared: the base image sets it to 8080, and ASP.NET Core warns when URLS overrides it.)
 ENV ASPNETCORE_URLS=http://+:5080 \
     ASPNETCORE_HTTP_PORTS= \
-    OpenBrowser=false
+    OpenBrowser=false \
+    Seed__Path=/app/seed
 EXPOSE 5080
 ENTRYPOINT ["dotnet", "ReceiptExtractor.Api.dll"]

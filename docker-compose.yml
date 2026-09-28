@@ -17,6 +17,7 @@ services:
     environment:
       Ollama__BaseUrl: ${OLLAMA_URL:-http://ollama:11434}
       Ollama__Model: ${MODEL:-qwen3-vl:8b-instruct} # keep the default in sync with appsettings.json
+      Seed__Enabled: "true" # demo receipts on first start (only into an empty database)
     extra_hosts:
       - "host.docker.internal:host-gateway" # for OLLAMA_URL on Linux (Docker Desktop has it built in)
     volumes:

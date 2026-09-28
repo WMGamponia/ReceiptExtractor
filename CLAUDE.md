@@ -22,6 +22,8 @@ Keep ROADMAP.md checkboxes in sync too.
   win-x64 publish. Non-Development runs use a `data` folder next to the exe and port 5080 (`Hosting/DesktopMode.cs`).
 - Docker: `Dockerfile` (same app, Linux) + `docker-compose.yml` (app only; `--profile ai` adds Ollama + `ollama-pull`).
   The default model is in `appsettings.json`, `docker-compose.yml` (twice) and `scripts/pull-model.sh` — keep them in sync.
+  Docker seeds an empty DB (`Seeding/`, `Seed:Enabled`): labeled receipts from `datasets/` + made-up ones. Label JSON
+  categories must be one of the app's categories.
   Docker can't use the AMD GPU on Windows: test with `OLLAMA_URL=http://host.docker.internal:11434 docker compose up`.
 - DB is created with `EnsureCreated()` (no migrations yet): when adding a column to the entity, also add it to
   `Data/SchemaPatches.cs` so existing `receipts.db` files get it (other schema changes still need the DB deleted).

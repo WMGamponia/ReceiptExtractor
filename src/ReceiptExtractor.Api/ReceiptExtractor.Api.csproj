@@ -16,6 +16,11 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Image for made-up seed receipts (Seeding/SampleReceipts.cs), which have no photo. -->
+    <EmbeddedResource Include="Seeding\sample-receipt.png" LogicalName="sample-receipt.png" />
+  </ItemGroup>
+
   <!--
     publish.cmd builds one ReceiptTracker.exe. The Web SDK leaves the web app (wwwroot) and appsettings.json
     out of single-file bundles and copies them next to the exe, so an exe moved on its own served 404s and

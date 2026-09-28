@@ -6,6 +6,7 @@ using ReceiptExtractor.Api.Data;
 using ReceiptExtractor.Api.Endpoints;
 using ReceiptExtractor.Api.Extraction;
 using ReceiptExtractor.Api.Hosting;
+using ReceiptExtractor.Api.Seeding;
 using ReceiptExtractor.Api.Summaries;
 
 var isDevelopment = string.Equals(
@@ -66,6 +67,10 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
     SchemaPatches.Apply(db); // add columns introduced since the database was created
+
+    // Demo receipts for a fresh Docker install (Seed:Enabled is off everywhere else). Never touches a database with receipts.
+    SeedData.Apply(db, app.Configuration.GetSection("Seed").Get<SeedOptions>() ?? new(), app.Environment.ContentRootPath,
+        app.Services.GetRequiredService<IOptions<StorageOptions>>().Value.ReceiptsPath, TimeProvider.System, app.Logger);
 }
 
 if (app.Environment.IsDevelopment())
