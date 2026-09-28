@@ -117,6 +117,7 @@ src/ReceiptExtractor.Api/
   Extraction/    Ollama client, background queue + worker
   Validation/    VAT math, date checks, merchant clean-up
   Data/          EF Core entity + DbContext (SQLite)
+  Summaries/     period math (ISO weeks, calendar quarters) + GET /api/summary
 tests/ReceiptExtractor.Tests/   xUnit tests
 datasets/
   labels/        receipt images
