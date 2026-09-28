@@ -19,13 +19,13 @@ Steps to take the project from scope to finished.
 
 **Winner: vision (`qwen3-vl:8b-instruct`)** — 95% core accuracy, slowest receipt 17.5s, on 7 receipts. Tesseract + LLM: 19%. See `eval/RESULTS.md`.
 
-## 4. Build the backend
+## 4. Build the backend ✅
 - [x] ASP.NET Core (.NET 10) + SQLite via EF Core — chosen to match C#/.NET job postings
 - [x] Run extraction as a background job with a status endpoint (`POST` returns 202, poll `GET /api/receipts/{id}`)
 - [x] Validate output against a strict schema (Ollama structured output + parsing)
 - [x] Flag suspicious fields for review (VAT math, missing/future date, missing total)
 - [x] Unit tests for VAT math, merchant rules, parsing, record naming
-- [ ] First end-to-end run against Ollama on my machine
+- [x] First end-to-end run against Ollama on my machine (tested with Postman)
 
 ## 5. Build the frontend
 - [ ] TypeScript PWA with camera capture
@@ -36,6 +36,7 @@ Steps to take the project from scope to finished.
 ## 6. Add PH-specific touches
 - [ ] PHP formatting
 - [ ] VAT-inclusive math (12% baked into the total)
+- [x] VAT-exempt sales and discounts (senior citizen / PWD): extracted, editable, included in the VAT check
 - [ ] Sensible local categories
 - [ ] CSV export for freelancers tracking expenses
 - [ ] Keep it a tracker, not a tax tool
