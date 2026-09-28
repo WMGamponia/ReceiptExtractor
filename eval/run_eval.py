@@ -12,18 +12,26 @@ only re-scores. The cache is thrown away automatically when the model or the
 prompt changes. Use --fresh to force a re-run anyway (e.g. after changing
 PaddleOCR settings).
 
+eval/preds/ holds OCR text (with TINs), so it's never committed. A slim copy of
+each prediction (the extracted fields and timing, no OCR text) goes to
+eval/model_outputs/, which IS committed: that's what lets GitHub Actions score
+the eval without a GPU (--offline).
+
 Run (from the project root, with .venv active):
     python eval/run_eval.py                          # all approaches
     python eval/run_eval.py --only vision tesseract  # skip slow PaddleOCR
     python eval/run_eval.py --fresh                  # ignore cache
+    python eval/run_eval.py --offline --only vision --check   # what CI runs
 
-Results are also written to eval/RESULTS.md.
+Results are also written to eval/RESULTS.md (not in --offline mode).
 """
 
 import argparse
 import hashlib
 import json
+import os
 import re
+import sys
 import statistics
 from datetime import date
 from difflib import SequenceMatcher
@@ -38,10 +46,12 @@ ROOT = Path(__file__).resolve().parent.parent
 IMAGES = ROOT / "datasets" / "labels"
 LABELS = ROOT / "datasets" / "receipts"
 PREDS = ROOT / "eval" / "preds"
+MODEL_OUTPUTS = ROOT / "eval" / "model_outputs"
 RESULTS_MD = ROOT / "eval" / "RESULTS.md"
 
 FIELDS = list(Receipt.model_fields)          # merchant, date, total, VAT fields, discount
 CORE = ["date", "merchant", "total"]         # the fields SCOPE.md's 85% target is about
+CORE_TARGET = 0.85                           # SCOPE.md: >= 85% core accuracy
 IMAGE_EXTS = (".jpg", ".jpeg", ".png")
 
 
@@ -141,12 +151,37 @@ def cache_key(approach: str, model: str, image: Path) -> str:
     return h.hexdigest()[:16]
 
 
+class Stale(Exception):
+    """--offline, but the committed model output is missing or was made with another prompt/model/image."""
+
+
+def save_model_output(approach: str, image: Path, record: dict) -> None:
+    """The committable part of a prediction: fields and timing, never the OCR text."""
+    path = MODEL_OUTPUTS / approach / f"{image.stem}.json"
+    slim = {k: record[k] for k in ("key", "model", "prediction", "seconds")}
+    text = json.dumps(slim, indent=2, ensure_ascii=False) + "\n"
+    if not path.exists() or path.read_text(encoding="utf-8") != text:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+
+def load_model_output(approach: str, image: Path, model: str) -> dict:
+    path = MODEL_OUTPUTS / approach / f"{image.stem}.json"
+    if not path.exists():
+        raise Stale(f"no saved model output for {image.stem}")
+    record = json.loads(path.read_text(encoding="utf-8"))
+    if record.get("key") != cache_key(approach, model, image):
+        raise Stale(f"{image.stem} was scored with a different prompt, model or image")
+    return record
+
+
 def predict(approach: str, image: Path, model: str, fresh: bool) -> dict:
     path = PREDS / approach / f"{image.stem}.json"
     key = cache_key(approach, model, image)
     if not fresh and path.exists():
         cached = json.loads(path.read_text(encoding="utf-8"))
         if cached.get("key") == key:
+            save_model_output(approach, image, cached)
             return cached
 
     result, text, ocr_s, total_s = run(approach, image, model)
@@ -160,6 +195,7 @@ def predict(approach: str, image: Path, model: str, fresh: bool) -> dict:
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(record, indent=2, ensure_ascii=False), encoding="utf-8")
+    save_model_output(approach, image, record)
     return record
 
 
@@ -174,14 +210,19 @@ def main() -> None:
     parser.add_argument("--model", default="qwen3-vl:8b-instruct")
     parser.add_argument("--only", nargs="+", choices=APPROACHES, default=APPROACHES)
     parser.add_argument("--fresh", action="store_true", help="Ignore cached predictions")
+    parser.add_argument("--offline", action="store_true",
+                        help="Score the committed eval/model_outputs/ only; never call Ollama (CI)")
+    parser.add_argument("--check", action="store_true",
+                        help=f"Exit with an error if core accuracy is under {CORE_TARGET:.0%} (CI)")
     args = parser.parse_args()
 
     dataset = load_dataset()
     print(f"{len(dataset)} labeled receipts, model {args.model}")
 
-    # Load the model once up front so the first receipt's time isn't inflated by loading.
-    print("Loading model...")
-    ollama.generate(model=args.model, prompt="", keep_alive="10m")
+    if not args.offline:
+        # Load the model once up front so the first receipt's time isn't inflated by loading.
+        print("Loading model...")
+        ollama.generate(model=args.model, prompt="", keep_alive="10m")
 
     summary, misses = {}, []
     for approach in args.only:
@@ -189,7 +230,14 @@ def main() -> None:
         rows = []
         for image, label in dataset:
             try:
-                rec = predict(approach, image, args.model, args.fresh)
+                if args.offline:
+                    rec = load_model_output(approach, image, args.model)
+                else:
+                    rec = predict(approach, image, args.model, args.fresh)
+            except Stale as why:
+                sys.exit(f"{approach}: {why}.\nThe prompt, model or dataset changed since the eval last ran. "
+                         f"Re-run it on a machine with Ollama and commit eval/model_outputs/:\n"
+                         f"    python eval/run_eval.py --only {approach}")
             except Skip as why:
                 print(f"skipped: {why}")
                 rows = None
@@ -223,7 +271,7 @@ def main() -> None:
         secs = [r[3] for r in rows]
         flags = sum(1 for r in rows if r[4])
         core = pct(core_ok, n * len(CORE))
-        core += " ✅" if core_ok >= 0.85 * n * len(CORE) else " ❌"
+        core += " ✅" if core_ok >= CORE_TARGET * n * len(CORE) else " ❌"
         slowest = f"{max(secs):.1f}" + (" ✅" if max(secs) < 30 else " ❌")
         lines.append(f"| {approach} | " + " | ".join(per_field)
                      + f" | {core} | {statistics.median(secs):.1f} | {slowest} | {flags} |")
@@ -238,9 +286,20 @@ def main() -> None:
         lines.append("None 🎉")
 
     report = "\n".join(lines) + "\n"
-    RESULTS_MD.write_text(report, encoding="utf-8")
     print("\n" + report)
-    print(f"Saved to {RESULTS_MD.relative_to(ROOT)}")
+    if not args.offline:
+        RESULTS_MD.write_text(report, encoding="utf-8")
+        print(f"Saved to {RESULTS_MD.relative_to(ROOT)}")
+    if os.environ.get("GITHUB_STEP_SUMMARY"):  # show the table on the GitHub Actions run page
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary_md:
+            summary_md.write(report)
+
+    if args.check:
+        below = [a for a, rows in summary.items()
+                 if sum(r[2][f] for r in rows for f in CORE) < CORE_TARGET * n * len(CORE)]
+        if below:
+            sys.exit(f"Core accuracy is under the {CORE_TARGET:.0%} target for: {', '.join(below)}")
+        print(f"Core accuracy meets the {CORE_TARGET:.0%} target.")
 
 
 if __name__ == "__main__":
