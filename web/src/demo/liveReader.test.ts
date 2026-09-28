@@ -54,7 +54,7 @@ describe('createLiveReader', () => {
     const [url, init] = fetchFn.mock.calls[0]
     expect(url).toBe(`${BASE}/api/extract`)
     expect(init?.method).toBe('POST')
-    expect((init?.body as FormData).get('file')).toBeInstanceOf(File)
+    expect((init!.body as FormData).get('file')).toBeInstanceOf(File)
   })
 
   it('sends photos one at a time', async () => {
