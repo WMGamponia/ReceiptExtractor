@@ -44,8 +44,16 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
     app.MapOpenApi(); // OpenAPI document at /openapi/v1.json
 
+// The built web app (web/dist, copied into wwwroot by publish.cmd). In development the
+// Vite dev server serves it instead, so wwwroot is usually empty/missing there.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapReceiptEndpoints();
 app.MapSummaryEndpoints();
+
+app.MapFallback("/api/{**path}", () => Results.NotFound()); // unknown API routes: 404, not the web page
+app.MapFallbackToFile("index.html");                         // everything else: the React app handles routing
 
 app.Run();
 
