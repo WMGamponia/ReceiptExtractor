@@ -43,7 +43,7 @@ Started with `LiveDemo:Enabled=true` on `http://localhost:5090`. `Program.cs` th
 path that registers **only**:
 
 - `OllamaExtractor` (typed `HttpClient`, same `Ollama` settings), `TimeProvider`, the rate limiter, CORS;
-- `GET /api/live` → `200 { "model": "<Ollama:Model>" }` (the site's "is it on?" check);
+- `GET /api/live` → `200 { "model": "<Ollama:Model>", "perVisitorPerHour": 20 }` (the site's "is it on?" check; the limit is null when off, so the Add page shows the real number);
 - `POST /api/extract` (multipart, one `file`) → `200 { "fields": {…}, "category": "…", "extractionSeconds": 17.3 }`.
 
 It does **not** register `AppDbContext`, storage options, static files, the fallback to `index.html`, seeding, the
