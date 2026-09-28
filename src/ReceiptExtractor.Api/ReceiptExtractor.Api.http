@@ -3,6 +3,9 @@
 ### List all receipts
 GET {{Api}}/api/receipts
 
+### Export confirmed receipts as CSV (September 2026; "to" is the day after the last one)
+GET {{Api}}/api/receipts/export.csv?from=2026-09-01&to=2026-10-01
+
 ### Upload a receipt (change the path to one of your images)
 POST {{Api}}/api/receipts
 Content-Type: multipart/form-data; boundary=receipt

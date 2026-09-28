@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ReceiptExtractor.Api.Data;
+using ReceiptExtractor.Api.Export;
 using ReceiptExtractor.Api.Extraction;
 using ReceiptExtractor.Api.Validation;
 
@@ -90,6 +91,8 @@ public static class ReceiptEndpoints
             .DisableAntiforgery() // local API called by our own frontend; no cookie auth to protect
             .WithSummary("Upload a receipt image. Extraction runs in the background; poll GET /{id} for the result.");
         receipts.MapGet("/", List).WithSummary("All receipts, newest first.");
+        receipts.MapGet("/export.csv", ExportCsv)
+            .WithSummary("Confirmed receipts as a CSV file for a spreadsheet, oldest first. Optional ?from= and ?to= (exclusive) dates.");
         receipts.MapGet("/{id:guid}", Get).WithSummary("One receipt: status, extracted fields and review flags.");
         receipts.MapGet("/{id:guid}/image", GetImage).WithSummary("The receipt image.");
         receipts.MapPut("/{id:guid}/image", ReplaceImage)
@@ -154,6 +157,24 @@ public static class ReceiptEndpoints
     {
         var receipts = await db.Receipts.OrderByDescending(r => r.UploadedAtUtc).ToListAsync(ct);
         return TypedResults.Ok(receipts.Select(ReceiptResponse.From).ToList());
+    }
+
+    /// <param name="from">First day to include (YYYY-MM-DD); default: no lower limit</param>
+    /// <param name="to">Day after the last one to include, like the summary's End; default: no upper limit</param>
+    private static async Task<Results<FileContentHttpResult, ValidationProblem>> ExportCsv(
+        AppDbContext db, CancellationToken ct, DateOnly? from = null, DateOnly? to = null)
+    {
+        if (from is { } f && to is { } t && f >= t)
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]> { ["to"] = ["'to' must be after 'from'."] });
+
+        // Confirmed only, like the summaries: those are the ones a human has checked.
+        var query = db.Receipts.Where(r => r.Status == ReceiptStatus.Confirmed);
+        if (from is not null) query = query.Where(r => r.Date >= from);
+        if (to is not null) query = query.Where(r => r.Date < to);
+        var receipts = await query.OrderBy(r => r.Date).ThenBy(r => r.UploadedAtUtc).ToListAsync(ct);
+
+        return TypedResults.File(
+            ReceiptCsv.Encode(ReceiptCsv.Write(receipts)), "text/csv; charset=utf-8", ReceiptCsv.FileName(from, to));
     }
 
     private static async Task<Results<Ok<ReceiptResponse>, NotFound>> Get(Guid id, AppDbContext db, CancellationToken ct)
