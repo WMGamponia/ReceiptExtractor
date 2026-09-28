@@ -62,7 +62,8 @@ Steps to take the project from scope to finished.
 - [x] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill): https://receipt-tracker-demo.pages.dev
   - [x] Demo build (`npm run build:demo`): made-up data in the browser; synthetic receipts (no real photos) with the real model's answers
   - [x] Cloudflare Pages, redeploys on every push to `main`
-- ~~"Try it live" link from my PC~~ — dropped: without a domain (so no Cloudflare Access) it would be a public, login-free door into my PC where every visitor sees everyone else's uploads. The static demo (real model answers on synthetic receipts), the GIF of the real app and `docker compose up` cover it
+- ~~"Try it live" link from my PC~~ — dropped: without a domain (so no Cloudflare Access) it would be a public, login-free door into my PC where every visitor sees everyone else's uploads
+- [ ] Live demo, on demand instead: while I run `scripts/live-demo.ps1`, the demo site sends visitors' own photos to an extract-only mode of the API on my PC (Tailscale Funnel) and keeps the results in their browser. Nothing is stored on the PC; 20 per visitor an hour, 100 per run, stops after 3 hours
 - [x] Record a 30-second GIF of the real local flow: `docs/demo.gif` (synthetic receipt, made-up data only), in the README
 
 ## 10. Write the README

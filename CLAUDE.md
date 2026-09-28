@@ -21,6 +21,10 @@ Keep ROADMAP.md checkboxes in sync too.
   Demo site (`npm run build:demo`, Cloudflare Pages): `web/src/demo/demoApi.ts` stands in for the API in the browser;
   when an endpoint's rules change, change demoApi too. No real receipt photos on the demo, ever: only the synthetic ones
   from `eval/make_demo_receipts.py` (re-run its `read` step after a prompt change).
+  Live demo (`scripts/live-demo.ps1`, spec in `docs/superpowers/specs/2026-09-28-live-demo-design.md`): `--LiveDemo:Enabled=true`
+  starts `LiveDemo/LiveDemoApp.cs` instead of the app. It must never register the database, storage or static files, and
+  never log fields or images. The web side is `web/src/demo/liveReader.ts` (`VITE_LIVE_URL`); visitor-facing messages
+  live in `LiveDemoEndpoints` and `liveReader.ts`/`demoApi.ts`.
 - Packaged exe: `publish.cmd` builds web/dist into the API's wwwroot, then a self-contained single-file
   win-x64 publish. Non-Development runs use a `data` folder next to the exe and port 5080 (`Hosting/DesktopMode.cs`).
 - Docker: `Dockerfile` (same app, Linux) + `docker-compose.yml` (app only; `--profile ai` adds Ollama + `ollama-pull`).

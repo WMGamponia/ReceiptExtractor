@@ -15,6 +15,7 @@ React 19, react-router 7, TypeScript strict, vite-plugin-pwa, Vitest, oxlint. No
 ## Data
 - All HTTP goes through `src/api.ts`, with relative `/api/...` URLs. Its types mirror the C# DTOs — change both together.
 - The demo build (`npm run build:demo`) swaps in `src/demo/demoApi.ts`, which mirrors the endpoints in the browser. New or changed endpoints need a demoApi version too. Check demo-only UI with `IS_DEMO`; the normal build must not contain demo code (keep demo module top-level code pure).
+- Live demo: `src/demo/liveReader.ts` talks to the author's PC (`VITE_LIVE_URL`, unset = off). Visitors' own photos go through it one at a time; samples never do. Photos are never saved to `localStorage`.
 - The demo site shows only synthetic receipts (`public/demo/receipts`, made by `eval/make_demo_receipts.py`), never real receipt photos.
 - Poll busy receipts (`Queued`/`Processing`) like `useReceipt.ts`: a `cancelled` flag and cleared timers in the effect cleanup.
 - Keep state that should survive navigation in the URL (e.g. the list tab), not in global state.

@@ -8,9 +8,9 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 *The real app (Docker, `qwen3-vl:8b-instruct` on an AMD GPU) with a synthetic receipt: the model reads `08/09/2026` as September 8, the date is fixed in review ("You corrected"), and it shows up in August's spending.*
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaged (step 7): a single Windows exe, or `docker compose up` with demo data. CI on every PR (step 8): tests, the eval scored from cached model outputs, the Docker build. Demo site live and demo GIF recorded (step 9).
+> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaged (step 7): a single Windows exe, or `docker compose up` with demo data. CI on every PR (step 8): tests, the eval scored from cached model outputs, the Docker build. Demo site live and demo GIF recorded (step 9), plus an on-demand live demo that reads visitors' own photos on my PC.
 >
-> _Last updated: 2026-09-28_
+> _Last updated: 2026-09-29_
 
 **Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 
@@ -104,7 +104,7 @@ Live at **https://receipt-tracker-demo.pages.dev**. `npm run build:demo` builds 
 
 - **Made-up data only.** 40 confirmed receipts over the past year fill the Spending page, dated relative to today so it never looks stale. Everything a visitor does stays in their browser (`localStorage`); **Reset demo** starts over.
 - **Real model answers on synthetic receipts.** Real receipt photos are personal data, so they never go on the demo. `eval/make_demo_receipts.py` draws five made-up PH receipts (made-up stores, TIN `000-000-000-000`: a carinderia, a supermarket with a VAT tax table, a pharmacy with a senior citizen discount, a tilted and faded gas-station slip, a non-VAT sari-sari store) and has the real app read them with `qwen3-vl:8b-instruct`. On **Add**, picking one replays the model's actual answer after the time it really took, mistakes included: it reads the pharmacy's `08/09/2026` as September 8 (day and month swapped) and files the sari-sari store under Food.
-- Uploading your own photo, **Re-extract** and **Try again** explain that reading receipts needs the model on your own computer.
+- Uploading your own photo explains that reading receipts needs the model on your own computer, **unless the live demo is on** (below). **Re-extract** always does.
 
 How it works: `src/api.ts` exports `demoApi` (`src/demo/`) instead of the HTTP client when built with `--mode demo`. It mirrors the API's rules (validation, checks, bulk confirm, corrections) and ports the summary periods and CSV export to TypeScript; the normal build contains none of it.
 
@@ -117,6 +117,26 @@ npx vite preview --mode demo           # try it at http://localhost:4173
 python eval/make_demo_receipts.py render
 python eval/make_demo_receipts.py read --api http://localhost:5080
 ```
+
+### Read on the author's PC (live demo, on demand)
+
+While I run `scripts/live-demo.ps1`, visitors' **own** photos are read by the real model on my PC and the answer comes back to their browser; everything else still happens in the browser. It's off by default, and the site falls back to the samples when it is.
+
+- **Nothing is kept.** The API starts in a separate, minimal mode (`--LiveDemo:Enabled=true`, `src/ReceiptExtractor.Api/LiveDemo/`) that registers no database and no storage: two endpoints (`GET /api/live`, `POST /api/extract`), the photo read in memory and dropped. Logs have size, time and outcome only. My real app (port 5080) and Ollama are never exposed.
+- **Limits:** one photo at a time on the GPU (3 more may wait), 20 per visitor an hour, 100 per run, 2 minutes per photo, and it stops itself after 3 hours. Only `receipt-tracker-demo.pages.dev` may read the answers (CORS).
+- **In the browser:** `web/src/demo/liveReader.ts` checks whether the PC is on (`VITE_LIVE_URL`), sends photos one at a time, and turns errors into plain messages. Samples always replay their recorded answers.
+
+One-time setup:
+1. Install [Tailscale](https://tailscale.com/download) and sign in.
+2. In the Tailscale admin console, rename this PC (e.g. `receipt-demo`) so its real name isn't in the public address.
+3. Run the script once: the first `tailscale funnel` prints a link to allow Funnel (and HTTPS) on the tailnet.
+4. Cloudflare Pages → the project → Settings → Variables: `VITE_LIVE_URL` = the address the script prints (`https://receipt-demo.<tailnet>.ts.net`), then redeploy.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\live-demo.ps1   # needs Ollama with the model; Ctrl+C to stop
+```
+
+Trying it without the tunnel: run the API with `--urls http://localhost:5090 --LiveDemo:Enabled=true --LiveDemo:AllowedOrigin=http://localhost:4173`, then `VITE_LIVE_URL=http://localhost:5090 npm run build:demo` and `npx vite preview --mode demo`.
 
 **Deploying to Cloudflare Pages:** Workers & Pages → Create → Pages → Connect to Git → this repo, then: root directory `web`, build command `npm run build:demo`, build output `dist`, environment variable `NODE_VERSION` = `24`. Every push to `main` redeploys. Page routes such as `/receipts/…` work without extra setup (Pages serves `index.html` for them).
 
@@ -244,6 +264,7 @@ Dockerfile       the same app as a Linux image (web app built in)
 docker-compose.yml         app (+ Ollama and a model download with --profile ai)
 docker-compose.nvidia.yml  / docker-compose.amd.yml: GPU for the Ollama container
 scripts/         pull-model.ps1 / pull-model.sh: download the vision model into Ollama
+                 live-demo.ps1: let demo-site visitors' photos be read on this PC for a few hours
 src/ReceiptExtractor.Api/
   Endpoints/     HTTP endpoints (upload, status, confirm, retry, delete)
   Extraction/    Ollama client, background queue + worker
@@ -253,6 +274,7 @@ src/ReceiptExtractor.Api/
   Hosting/       desktop mode: data folder next to the exe, opens the browser, checks Ollama
   Seeding/       demo data for an empty database (Docker): labeled receipts + made-up ones
   Export/        CSV export (Excel-friendly: UTF-8 BOM, formula-safe text)
+  LiveDemo/      live demo mode: extract-only, no database or storage, limits (scripts/live-demo.ps1)
 tests/ReceiptExtractor.Tests/   xUnit tests
 tests/vat-cases.json            VAT check cases shared by the C#, TypeScript and Python tests
 .github/workflows/ci.yml        CI: tests, eval from cached model outputs, Docker build
