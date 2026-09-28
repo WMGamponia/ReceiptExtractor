@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using ReceiptExtractor.Api.Data;
+using ReceiptExtractor.Api.Endpoints;
 using ReceiptExtractor.Api.Extraction;
 using ReceiptExtractor.Api.LiveDemo;
 using ReceiptExtractor.Api.Validation;
@@ -48,9 +49,10 @@ public sealed class LiveDemoTests : IAsyncLifetime
         };
     }
 
-    private Task<HttpResponseMessage> Send(string fileName = "receipt.jpg", byte[]? bytes = null, string visitor = "203.0.113.7")
+    private Task<HttpResponseMessage> Send(
+        string fileName = "receipt.jpg", byte[]? bytes = null, string visitor = "203.0.113.7", HttpContent? content = null)
     {
-        var photo = new ByteArrayContent(bytes ?? Jpeg);
+        var photo = content ?? new ByteArrayContent(bytes ?? Jpeg);
         photo.Headers.ContentType = new("image/jpeg");
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/extract")
         {
@@ -251,11 +253,130 @@ public sealed class LiveDemoTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Never_writes_the_photo_to_disk()
+    {
+        await Start();
+        _extractor.Hold();
+        var photo = new byte[200_003]; // a phone photo is far over the 64 KB ASP.NET keeps in memory by default
+        Jpeg.CopyTo(photo, 0);
+        var temp = Environment.GetEnvironmentVariable("ASPNETCORE_TEMP") is { Length: > 0 } dir ? dir : Path.GetTempPath();
+        string[] Spooled() => Directory.GetFiles(temp, "ASPNETCORE_*.tmp"); // (their size reads 0 while open)
+        var before = Spooled();
+
+        var reading = Send(bytes: photo);
+        await WaitFor(() => _extractor.Images.Count == 1); // uploaded, and now with the model
+        var onDisk = Spooled().Except(before).Any();
+        _extractor.Release();
+
+        Assert.Equal(HttpStatusCode.OK, (await reading).StatusCode);
+        Assert.False(onDisk);
+    }
+
+    [Fact]
+    public async Task Stops_taking_in_a_body_far_over_the_limit()
+    {
+        await Start();
+        var huge = new CountedPhoto(Jpeg, 40 * 1024 * 1024);
+
+        var response = await Send(content: huge);
+
+        Assert.False(response.IsSuccessStatusCode);
+        Assert.InRange(huge.Sent, 0, UploadRules.MaxBytes + 2 * 1024 * 1024); // not all 40 MB
+        Assert.Empty(_extractor.Images);
+    }
+
+    [Fact]
+    public async Task Says_busy_before_taking_a_photo_when_too_many_are_sending()
+    {
+        await Start("--LiveDemo:MaxWaiting=1"); // one read, one waiting, one more on its way at most
+        var slow = Enumerable.Range(1, 3).Select(_ => new SlowPhoto(Jpeg)).ToList();
+        var sending = slow.Select((p, i) => Send(content: p, visitor: $"203.0.113.{i + 1}")).ToList();
+        try
+        {
+            await Task.WhenAll(slow.Select(p => p.Started)).WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Delay(100);
+
+            var another = await Send(visitor: "203.0.113.9");
+
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, another.StatusCode);
+            Assert.Equal(LiveDemoEndpoints.Busy, await Detail(another));
+        }
+        finally
+        {
+            slow.ForEach(p => p.Finish());
+            await Task.WhenAll(sending);
+        }
+    }
+
+    [Fact]
     public async Task Stops_itself_after_StopAfter()
     {
         await Start("--LiveDemo:StopAfter=00:00:00.2");
 
         await WaitFor(() => _app!.Lifetime.ApplicationStopping.IsCancellationRequested);
+    }
+
+    /// <summary>A photo of <c>length</c> bytes, sent in chunks, counting how many the service took.</summary>
+    private sealed class CountedPhoto(byte[] start, long length) : HttpContent
+    {
+        public long Sent { get; private set; }
+
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            var chunk = new byte[64 * 1024];
+            start.CopyTo(chunk, 0);
+            try
+            {
+                while (Sent < length)
+                {
+                    await stream.WriteAsync(chunk);
+                    Sent += chunk.Length;
+                }
+            }
+            catch (Exception e) when (e is IOException or OperationCanceledException or ObjectDisposedException)
+            {
+                // the service stopped reading
+            }
+        }
+
+        protected override bool TryComputeLength(out long length_)
+        {
+            length_ = length;
+            return true;
+        }
+    }
+
+    /// <summary>A photo on a slow connection: the first bytes, then the rest once <see cref="Finish"/> is called.</summary>
+    private sealed class SlowPhoto : HttpContent
+    {
+        private readonly byte[] _bytes;
+        private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _finish = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public SlowPhoto(byte[] bytes)
+        {
+            _bytes = bytes;
+            Headers.ContentType = new("image/jpeg");
+        }
+
+        public Task Started => _started.Task;
+
+        public void Finish() => _finish.TrySetResult();
+
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            await stream.WriteAsync(_bytes.AsMemory(0, 3));
+            await stream.FlushAsync();
+            _started.TrySetResult();
+            await _finish.Task;
+            await stream.WriteAsync(_bytes.AsMemory(3));
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = _bytes.Length;
+            return true;
+        }
     }
 
     /// <summary>Answers like the model would, optionally holding reads until <see cref="Release"/>.</summary>

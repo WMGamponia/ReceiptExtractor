@@ -73,6 +73,14 @@ describe('createLiveReader', () => {
     expect(await Promise.all(reads)).toHaveLength(3)
   })
 
+  it('refuses a photo over 15 MB without sending it', async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () => json(200, READING))
+    const big = new File([new Uint8Array(15 * 1024 * 1024 + 1)], 'big.jpg', { type: 'image/jpeg' })
+
+    await expect(createLiveReader(BASE, fetchFn)!.read(big, () => true)).rejects.toThrow('File must be between 1 byte and 15 MB.')
+    expect(fetchFn).not.toHaveBeenCalled()
+  })
+
   it('skips a photo whose receipt is gone by its turn', async () => {
     const fetchFn = vi.fn<typeof fetch>(async () => json(200, READING))
 

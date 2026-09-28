@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ReceiptExtractor.Api.Endpoints;
 using ReceiptExtractor.Api.Extraction;
@@ -16,6 +17,9 @@ public sealed record LiveReading(ReceiptFields Fields, string? Category, double 
 public static class LiveDemoEndpoints
 {
     public const string VisitorPolicy = "visitor";
+
+    /// <summary>The largest request taken in: a photo at the upload limit plus the form around it.</summary>
+    public const long MaxBody = UploadRules.MaxBytes + 64 * 1024;
 
     public const string Busy = "The author's PC is busy; try again in a minute.";
     public const string BudgetUsed = "The live demo has read all it will for now; try the sample receipts.";
@@ -35,7 +39,10 @@ public static class LiveDemoEndpoints
 
         app.MapPost("/api/extract", Extract)
             .DisableAntiforgery() // no cookies to protect; CORS decides which site may read the answer
-            .RequireRateLimiting(VisitorPolicy);
+            .RequireRateLimiting(VisitorPolicy)
+            // Bigger uploads are cut off early; smaller ones are kept in memory (ASP.NET would spool them to a temp file).
+            .WithMetadata(new RequestSizeLimitAttribute(MaxBody))
+            .WithFormOptions(memoryBufferThreshold: (int)MaxBody, multipartBodyLengthLimit: MaxBody);
 
         return app;
     }

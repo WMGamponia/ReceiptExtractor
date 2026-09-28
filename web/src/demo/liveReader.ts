@@ -25,6 +25,9 @@ export interface LiveReader {
 
 export const WENT_OFFLINE = "The author's PC went offline; try again later."
 
+const MAX_PHOTO_BYTES = 15 * 1024 * 1024
+const TOO_BIG = 'File must be between 1 byte and 15 MB.' // the service's own message
+
 const STATUS_TIMEOUT_MS = 3000
 const STATUS_CACHE_MS = 30_000
 
@@ -59,6 +62,8 @@ export function createLiveReader(
   }
 
   async function send(file: File): Promise<LiveAnswer> {
+    // The service cuts off anything bigger before reading it (UploadRules.MaxBytes), with no message to show.
+    if (file.size > MAX_PHOTO_BYTES) throw new Error(TOO_BIG)
     const body = new FormData()
     body.append('file', file)
     let response: Response

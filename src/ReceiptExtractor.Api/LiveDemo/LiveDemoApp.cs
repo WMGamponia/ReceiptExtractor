@@ -47,9 +47,18 @@ public static class LiveDemoApp
                 ? RateLimitPartition.GetFixedWindowLimiter(http.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                     _ => new FixedWindowRateLimiterOptions { PermitLimit = options.PerVisitorPerHour, Window = TimeSpan.FromHours(1) })
                 : RateLimitPartition.GetNoLimiter("everyone"));
+            // Before a photo is taken in: at most one being read, MaxWaiting waiting and one more on its way, so the
+            // photos held in memory stay few. The rest are told it's busy without being uploaded.
+            o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(http =>
+                HttpMethods.IsPost(http.Request.Method) && http.Request.Path == "/api/extract"
+                    ? RateLimitPartition.GetConcurrencyLimiter("uploads",
+                        _ => new ConcurrencyLimiterOptions { PermitLimit = options.MaxWaiting + 2, QueueLimit = 0 })
+                    : RateLimitPartition.GetNoLimiter("other"));
             o.OnRejected = (context, _) => new ValueTask(
-                Results.Problem(LiveDemoEndpoints.OverLimit(options.PerVisitorPerHour), statusCode: StatusCodes.Status429TooManyRequests)
-                    .ExecuteAsync(context.HttpContext));
+                (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var _) // the hourly window; uploads have none
+                    ? Results.Problem(LiveDemoEndpoints.OverLimit(options.PerVisitorPerHour), statusCode: StatusCodes.Status429TooManyRequests)
+                    : Results.Problem(LiveDemoEndpoints.Busy, statusCode: StatusCodes.Status503ServiceUnavailable))
+                .ExecuteAsync(context.HttpContext));
         });
 
         configure?.Invoke(builder);
