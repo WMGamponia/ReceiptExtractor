@@ -40,7 +40,7 @@ LABELS = ROOT / "datasets" / "receipts"
 PREDS = ROOT / "eval" / "preds"
 RESULTS_MD = ROOT / "eval" / "RESULTS.md"
 
-FIELDS = list(Receipt.model_fields)          # merchant, date, total, vat_amount, vatable_sales
+FIELDS = list(Receipt.model_fields)          # merchant, date, total, VAT fields, discount
 CORE = ["date", "merchant", "total"]         # the fields SCOPE.md's 85% target is about
 IMAGE_EXTS = (".jpg", ".jpeg", ".png")
 
@@ -101,17 +101,21 @@ def field_ok(field: str, got, want) -> bool:
 
 
 def vat_check(p: dict) -> str | None:
-    """PH receipts are VAT-inclusive: vatable_sales + vat = total, and vat = total * 12/112.
+    """Same rule as ReceiptValidator.cs: vatable + vat + exempt = total (or = total + discount,
+    for senior citizen / PWD discounts taken off after the breakdown), and vat = 12% of vatable.
     Returns a short problem description, or None if the numbers are consistent."""
-    total, vat, vatable = p.get("total"), p.get("vat_amount") or 0, p.get("vatable_sales") or 0
+    total = p.get("total")
+    vat, vatable = p.get("vat_amount") or 0, p.get("vatable_sales") or 0
+    exempt, discount = p.get("vat_exempt_sales") or 0, abs(p.get("discount") or 0)
     if total is None:
         return "no total"
-    if not vat and not vatable:
-        return None  # non-VAT receipt, nothing to check
-    if abs(vatable + vat - total) > 0.02:
-        return f"vatable+vat={vatable + vat:.2f} != total"
-    if abs(vat - total * 12 / 112) > 0.02:
-        return f"vat != total*12/112 ({total * 12 / 112:.2f})"
+    if not vat and not vatable and not exempt:
+        return None  # no VAT breakdown printed, nothing to check
+    breakdown = vatable + vat + exempt
+    if abs(breakdown - total) > 0.02 and not (discount and abs(breakdown - discount - total) <= 0.02):
+        return f"vatable+vat+exempt={breakdown:.2f} != total" + (f" (discount {discount:.2f})" if discount else "")
+    if abs(vat - round(vatable * 0.12, 2)) > 0.02:
+        return f"vat != 12% of vatable ({vatable * 0.12:.2f})"
     return None
 
 
@@ -225,7 +229,7 @@ def main() -> None:
                      + f" | {core} | {statistics.median(secs):.1f} | {slowest} | {flags} |")
 
     lines += ["", "Targets from SCOPE.md: core accuracy ≥ 85%, under 30s per receipt.",
-              "VAT-check flags = results where vatable_sales + vat ≠ total (would be sent to review).",
+              "VAT-check flags = results whose VAT breakdown doesn't add up (would be sent to review).",
               "", "## Misses", ""]
     if misses:
         lines += ["| Approach | Receipt | Field | Got | Expected |", "|---|---|---|---|---|"]

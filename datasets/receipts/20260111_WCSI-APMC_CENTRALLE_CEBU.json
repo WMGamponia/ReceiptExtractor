@@ -4,6 +4,8 @@
   "total": 5190.00,
   "vat_amount": 0.00,
   "vatable_sales": 0.00,
+  "vat_exempt_sales": 0.00,
+  "discount": 0.00,
   "category": "other",
   "notes": ""
 }

@@ -4,6 +4,8 @@
   "total": 10495.00,
   "vat_amount": 1124.46,
   "vatable_sales": 9370.54,
+  "vat_exempt_sales": 0.00,
+  "discount": 0.00,
   "category": "electronics",
   "notes": ""
 }
