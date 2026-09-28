@@ -18,6 +18,8 @@ Keep ROADMAP.md checkboxes in sync too.
   (User hints for "re-extract with my changes" are appended at runtime by `Extraction/UserHints.cs`; API only.)
 - Frontend: React + TypeScript + Vite PWA in `web/`; dev server proxies `/api` to the API on :5036.
   VAT checks exist in both `ReceiptValidator.cs` and `web/src/format.ts` — keep them in sync.
+- Packaged exe: `publish.cmd` builds web/dist into the API's wwwroot, then a self-contained single-file
+  win-x64 publish. Non-Development runs use a `data` folder next to the exe and port 5080 (`Hosting/DesktopMode.cs`).
 - DB is created with `EnsureCreated()` (no migrations yet): when adding a column to the entity, also add it to
   `Data/SchemaPatches.cs` so existing `receipts.db` files get it (other schema changes still need the DB deleted).
 - Windows dev machine, Visual Studio, Python venv in `.venv`, AMD Radeon GPU (PaddleOCR can't use it).

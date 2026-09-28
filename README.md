@@ -79,6 +79,21 @@ python eval/run_eval.py --only vision tesseract
 
 Predictions are cached in `eval/preds/` and re-run automatically when the model or prompt changes (`--fresh` forces a re-run).
 
+## Run it as a desktop app (Windows)
+
+Build once:
+
+```bat
+publish.cmd
+```
+
+That creates **`publish\ReceiptTracker.exe`**, a single file containing the API *and* the web app (no .NET or Node needed to run it). Start Ollama, double-click the exe, and your browser opens at http://localhost:5080. Close the console window to stop it.
+
+- Your database and receipt images are saved in a `data` folder next to the exe, so the whole folder is portable.
+- To change settings (model, Ollama address, port) without rebuilding, put a `settings.json` next to the exe, e.g. `{ "Ollama": { "Model": "qwen3-vl:4b-instruct" } }`.
+- To use it from your phone on the same Wi-Fi: `ReceiptTracker.exe --urls http://0.0.0.0:5080`, then open `http://<your-PC's-IP>:5080`. This makes it reachable by anyone on your network, since there are no logins.
+- Windows may show a SmartScreen warning the first time because the exe isn't code-signed: **More info → Run anyway**.
+
 ## Running the API
 
 Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download) and Ollama running with `qwen3-vl:8b-instruct` pulled.
@@ -130,12 +145,14 @@ npm test             # unit tests (formatting, VAT warnings)
 
 ```
 ReceiptExtractor.sln
+publish.cmd      builds publish\ReceiptTracker.exe (API + web app in one file)
 src/ReceiptExtractor.Api/
   Endpoints/     HTTP endpoints (upload, status, confirm, retry, delete)
   Extraction/    Ollama client, background queue + worker
   Validation/    VAT math, date checks, merchant clean-up
   Data/          EF Core entity + DbContext (SQLite)
   Summaries/     period math (ISO weeks, calendar quarters) + GET /api/summary
+  Hosting/       desktop mode: data folder next to the exe, opens the browser, checks Ollama
 tests/ReceiptExtractor.Tests/   xUnit tests
 web/
   src/pages/     Dashboard, Receipts, Review, Upload
