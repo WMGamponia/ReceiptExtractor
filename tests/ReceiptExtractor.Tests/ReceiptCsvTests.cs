@@ -32,7 +32,7 @@ public class ReceiptCsvTests
         var lines = Lines(ReceiptCsv.Write([Receipt(), Receipt()]));
 
         Assert.Equal("Date,Merchant,Category,Total,VAT,VATable sales,VAT-exempt sales,Discount,Receipt", lines[0]);
-        Assert.Equal("2025-12-20,DataBlitz,Shopping,10495.00,1124.46,9370.54,,,2025-12-20_DataBlitz", lines[1]);
+        Assert.Equal("20251220,DataBlitz,Shopping,10495.00,1124.46,9370.54,,,2025-12-20_DataBlitz", lines[1]);
         Assert.Equal(lines[1], lines[2]);
         Assert.Equal(4, lines.Length);
         Assert.Equal("", lines[3]); // ends with a line break
@@ -60,7 +60,7 @@ public class ReceiptCsvTests
     {
         var row = Lines(ReceiptCsv.Write([Receipt(merchant: null, vat: null, vatable: null, category: null)]))[1];
 
-        Assert.Equal("2025-12-20,,,10495.00,,,,,2025-12-20", row);
+        Assert.Equal("20251220,,,10495.00,,,,,2025-12-20", row);
     }
 
     [Theory]
@@ -69,7 +69,7 @@ public class ReceiptCsvTests
     [InlineData("Line\nbreak", "\"Line\nbreak\"")]
     [InlineData("Peñafrancia Store", "Peñafrancia Store")]
     public void Text_is_quoted_when_needed(string merchant, string expected) =>
-        Assert.StartsWith($"2025-12-20,{expected},", Lines(ReceiptCsv.Write([Receipt(merchant: merchant)]))[1]);
+        Assert.StartsWith($"20251220,{expected},", Lines(ReceiptCsv.Write([Receipt(merchant: merchant)]))[1]);
 
     [Theory]
     [InlineData("=HYPERLINK(\"http://x\")", "\"'=HYPERLINK(\"\"http://x\"\")\"")]
@@ -77,7 +77,7 @@ public class ReceiptCsvTests
     [InlineData("-SALE-", "'-SALE-")]
     [InlineData("@home", "'@home")]
     public void Text_that_a_spreadsheet_would_run_as_a_formula_is_defused(string merchant, string expected) =>
-        Assert.StartsWith($"2025-12-20,{expected},", Lines(ReceiptCsv.Write([Receipt(merchant: merchant)]))[1]);
+        Assert.StartsWith($"20251220,{expected},", Lines(ReceiptCsv.Write([Receipt(merchant: merchant)]))[1]);
 
     [Fact]
     public void Encodes_as_UTF8_with_a_BOM_so_Excel_shows_ñ()

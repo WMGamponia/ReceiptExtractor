@@ -21,7 +21,7 @@ public static class ReceiptCsv
         {
             AppendRow(csv,
             [
-                r.Date?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "",
+                r.Date?.ToString("yyyyMMdd", CultureInfo.InvariantCulture) ?? "",
                 Text(r.Merchant),
                 Text(r.Category),
                 Money(r.Total),
