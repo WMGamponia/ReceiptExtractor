@@ -95,9 +95,13 @@ dotnet test                                       # unit tests
 | `POST /api/receipts` | Upload a JPG/PNG (form field `file`). Returns **202** right away; extraction runs in the background |
 | `GET /api/receipts/{id}` | Status (`Queued` → `Processing` → `Extracted` / `NeedsReview` / `Failed`), fields and review flags |
 | `GET /api/receipts` | All receipts, newest first |
-| `GET /api/receipts/{id}/image` | The original image |
+| `GET /api/receipts/{id}/image` | The receipt image |
+| `PUT /api/receipts/{id}/image` | Replace the image (e.g. rotated). Fields are kept, extraction is **not** re-run; the first version is backed up as `{id}.original.jpg` |
 | `PUT /api/receipts/{id}` | Save reviewed/corrected fields → `Confirmed` |
+| `POST /api/receipts/confirm` | Bulk confirm `{ "ids": [...] }` with the extracted fields as-is. Receipts still being read, failed, or missing date/total/category are skipped with a reason |
 | `POST /api/receipts/{id}/retry` | Re-run a failed extraction |
+| `DELETE /api/receipts/{id}` | Delete the receipt and its image files (incl. the `.original` backup). **409** while the model is reading it |
+| `POST /api/receipts/delete` | Bulk delete `{ "ids": [...] }` (records + image files). Receipts the model is reading are skipped with a reason |
 
 `src/ReceiptExtractor.Api/ReceiptExtractor.Api.http` has ready-made requests you can click in Visual Studio. The database (`receipts.db`) and uploaded images (`storage/`) are created on first run; columns added later are patched into an existing database on startup (`Data/SchemaPatches.cs`).
 
@@ -108,7 +112,7 @@ dotnet test                                       # unit tests
 ```
 ReceiptExtractor.sln
 src/ReceiptExtractor.Api/
-  Endpoints/     HTTP endpoints (upload, status, confirm, retry)
+  Endpoints/     HTTP endpoints (upload, status, confirm, retry, delete)
   Extraction/    Ollama client, background queue + worker
   Validation/    VAT math, date checks, merchant clean-up
   Data/          EF Core entity + DbContext (SQLite)
