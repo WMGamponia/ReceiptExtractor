@@ -92,6 +92,28 @@ python eval/run_eval.py --offline --only vision --check   # score the committed 
 python -m unittest discover -s eval -p "test_*.py"        # scoring rules
 ```
 
+## Demo site (no install)
+
+`npm run build:demo` builds the web app as a static site that needs no server and no AI model, for Cloudflare Pages:
+
+- **Made-up data only.** 40 confirmed receipts over the past year fill the Spending page, dated relative to today so it never looks stale. Everything a visitor does stays in their browser (`localStorage`); **Reset demo** starts over.
+- **Real model answers on synthetic receipts.** Real receipt photos are personal data, so they never go on the demo. `eval/make_demo_receipts.py` draws five made-up PH receipts (made-up stores, TIN `000-000-000-000`: a carinderia, a supermarket with a VAT tax table, a pharmacy with a senior citizen discount, a tilted and faded gas-station slip, a non-VAT sari-sari store) and has the real app read them with `qwen3-vl:8b-instruct`. On **Add**, picking one replays the model's actual answer after the time it really took, mistakes included: it reads the pharmacy's `08/09/2026` as September 8 (day and month swapped) and files the sari-sari store under Food.
+- Uploading your own photo, **Re-extract** and **Try again** explain that reading receipts needs the model on your own computer.
+
+How it works: `src/api.ts` exports `demoApi` (`src/demo/`) instead of the HTTP client when built with `--mode demo`. It mirrors the API's rules (validation, checks, bulk confirm, corrections) and ports the summary periods and CSV export to TypeScript; the normal build contains none of it.
+
+```bash
+cd web
+npm run build:demo                     # -> web/dist
+npx vite preview --mode demo           # try it at http://localhost:4173
+
+# after changing the prompt or the synthetic receipts (needs the app running with Ollama):
+python eval/make_demo_receipts.py render
+python eval/make_demo_receipts.py read --api http://localhost:5080
+```
+
+**Deploying to Cloudflare Pages:** Workers & Pages → Create → Pages → Connect to Git → this repo, then: root directory `web`, build command `npm run build:demo`, build output `dist`, environment variable `NODE_VERSION` = `24`. Every push to `main` redeploys. Page routes such as `/receipts/…` work without extra setup (Pages serves `index.html` for them).
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every pull request and on `main`, with four jobs:
@@ -99,7 +121,7 @@ python -m unittest discover -s eval -p "test_*.py"        # scoring rules
 | Job | What it checks |
 |---|---|
 | API tests | `dotnet test` (parsing, VAT math, periods, CSV, seed data, and that the app's prompt matches the eval's) |
-| Web app | `npm run lint`, `npm test`, `npm run build` |
+| Web app | `npm run lint`, `npm test`, `npm run build`, `npm run build:demo` |
 | Extraction eval | Scores the committed `eval/model_outputs/` (no GPU, no Ollama). **Fails** if core accuracy drops under 85%, or if the prompt, model or dataset changed without re-running the eval. The results table is on the run's summary page |
 | Docker | `docker build` |
 
@@ -232,6 +254,8 @@ web/
   src/pages/     Dashboard, Receipts, Review, Upload
   src/api.ts     typed API client
   src/format.ts  peso/date formatting, VAT warnings (mirrors ReceiptValidator.cs)
+  src/demo/      demo site (npm run build:demo): in-browser stand-in for the API, made-up data
+  public/demo/   synthetic receipt images for the demo site
 datasets/
   labels/        receipt images
   receipts/      hand-labeled ground truth (one JSON per image)
@@ -241,6 +265,7 @@ eval/
   run_eval.py              score every approach on every receipt (--offline: from model_outputs/, for CI)
   test_scoring.py          tests for the scoring rules
   model_outputs/           extracted fields per receipt (committed; no OCR text)
+  make_demo_receipts.py    synthetic receipts for the demo site, read by the real app
   merchant_aliases.json    store name ↔ company name equivalents
   RESULTS.md               latest scores
 SCOPE.md         what the MVP does and doesn't do
