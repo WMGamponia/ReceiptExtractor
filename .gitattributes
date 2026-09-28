@@ -61,3 +61,9 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# Shell scripts run inside Linux containers (scripts/pull-model.sh): always LF,
+# or /bin/sh fails on the \r that a Windows checkout would add.
+###############################################################################
+*.sh    text eol=lf
