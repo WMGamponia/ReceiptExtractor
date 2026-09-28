@@ -73,4 +73,41 @@ public class ReceiptValidatorTests
 
         Assert.Empty(ReceiptValidator.Validate(fields, Today));
     }
+
+    [Fact]
+    public void Senior_citizen_receipt_passes()
+    {
+        // ₱560 of medicine: VAT removed (500 VAT-exempt), then 20% SC discount (100) -> ₱400 due.
+        var fields = new ReceiptFields("MERCURY DRUG", new DateOnly(2025, 1, 1), 400m, 0m, 0m, 500m, 100m);
+
+        Assert.Empty(ReceiptValidator.Validate(fields, Today));
+    }
+
+    [Fact]
+    public void Mixed_VATable_and_senior_citizen_items_pass()
+    {
+        // 112 of regular items (100 + 12 VAT) + 560 of SC items (500 exempt − 100 discount).
+        var fields = new ReceiptFields("x", new DateOnly(2025, 1, 1), 512m, 12m, 100m, 500m, 100m);
+
+        Assert.Empty(ReceiptValidator.Validate(fields, Today));
+    }
+
+    [Fact]
+    public void Promo_discount_already_inside_the_breakdown_passes()
+    {
+        // Discount applied before the VAT lines, so the breakdown already adds up to the total.
+        var fields = new ReceiptFields("x", new DateOnly(2025, 1, 1), 1000m, 107.14m, 892.86m, 0m, 50m);
+
+        Assert.Empty(ReceiptValidator.Validate(fields, Today));
+    }
+
+    [Fact]
+    public void Breakdown_that_does_not_add_up_is_flagged_even_with_a_discount()
+    {
+        var fields = new ReceiptFields("x", new DateOnly(2025, 1, 1), 400m, 0m, 0m, 500m, 80m);
+
+        var flags = ReceiptValidator.Validate(fields, Today);
+
+        Assert.Contains(flags, f => f.Contains("VAT-exempt sales") && f.Contains("420.00 after the 80.00 discount"));
+    }
 }

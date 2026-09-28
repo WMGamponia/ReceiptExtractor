@@ -21,6 +21,8 @@ public sealed record ReceiptResponse(
     decimal? Total,
     decimal? VatAmount,
     decimal? VatableSales,
+    decimal? VatExemptSales,
+    decimal? Discount,
     string? Category,
     IReadOnlyList<string> Flags,
     double? ExtractionSeconds,
@@ -32,7 +34,7 @@ public sealed record ReceiptResponse(
 {
     public static ReceiptResponse From(ReceiptRecord r) => new(
         r.Id, r.DisplayName, r.Status, r.Merchant, r.Date, r.Total, r.VatAmount, r.VatableSales,
-        r.Category, r.Flags, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
+        r.VatExemptSales, r.Discount, r.Category, r.Flags, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
         r.ConfirmedAtUtc, $"/api/receipts/{r.Id}/image");
 }
 
@@ -43,6 +45,8 @@ public sealed record ReceiptUpdate(
     decimal? Total,
     decimal? VatAmount,
     decimal? VatableSales,
+    decimal? VatExemptSales,
+    decimal? Discount,
     string? Category);
 
 public static class ReceiptEndpoints
@@ -151,11 +155,14 @@ public static class ReceiptEndpoints
         if (update.Total is not > 0) errors["total"] = ["Total is required and must be more than zero."];
         var category = Categories.Normalize(update.Category);
         if (category is null) errors["category"] = [$"Category must be one of: {string.Join(", ", Categories.All)}."];
+        if (update.VatExemptSales < 0) errors["vatExemptSales"] = ["VAT-exempt sales can't be negative."];
+        if (update.Discount < 0) errors["discount"] = ["Enter the discount as a positive amount."];
         if (errors.Count > 0)
             return TypedResults.ValidationProblem(errors);
 
         var fields = new ReceiptFields(
-            MerchantRules.Normalize(update.Merchant), update.Date, update.Total, update.VatAmount, update.VatableSales);
+            MerchantRules.Normalize(update.Merchant), update.Date, update.Total, update.VatAmount, update.VatableSales,
+            update.VatExemptSales, update.Discount);
         receipt.ApplyFields(fields, category);
 
         // Checks still run, but only as warnings: the user has the final say.

@@ -65,6 +65,32 @@ public class ParseModelOutputTests
     }
 
     [Fact]
+    public void Reads_VAT_exempt_sales_and_makes_discounts_positive()
+    {
+        const string json = """
+            {"merchant":"Mercury Drug","date":"2025-01-01","total":400,"vat_amount":0,"vatable_sales":0,"vat_exempt_sales":500,"discount":-100,"category":"Health"}
+            """;
+
+        var result = OllamaExtractor.ParseModelOutput(json);
+
+        Assert.Equal(500m, result.Fields.VatExemptSales);
+        Assert.Equal(100m, result.Fields.Discount);
+    }
+
+    [Fact]
+    public void Older_answers_without_the_new_fields_still_parse()
+    {
+        const string json = """
+            {"merchant":"X","date":"2025-01-01","total":100,"vat_amount":0,"vatable_sales":0,"category":"Food"}
+            """;
+
+        var result = OllamaExtractor.ParseModelOutput(json);
+
+        Assert.Null(result.Fields.VatExemptSales);
+        Assert.Null(result.Fields.Discount);
+    }
+
+    [Fact]
     public void Invalid_json_throws_a_clear_error()
     {
         var ex = Assert.Throws<ExtractionException>(() => OllamaExtractor.ParseModelOutput("Sure! Here is the receipt"));

@@ -15,5 +15,7 @@ Keep ROADMAP.md checkboxes in sync too.
 - Merchant: store name or company name both count; equivalents in `eval/merchant_aliases.json`.
 - Backend: ASP.NET Core (.NET 10) minimal APIs in `src/ReceiptExtractor.Api`, EF Core + SQLite, xUnit tests in `tests/`.
   The extraction prompt lives in both `OllamaExtractor.Prompt` and `eval/try_vision.py` — keep them in sync.
+- DB is created with `EnsureCreated()` (no migrations yet): when adding a column to the entity, also add it to
+  `Data/SchemaPatches.cs` so existing `receipts.db` files get it (other schema changes still need the DB deleted).
 - Windows dev machine, Visual Studio, Python venv in `.venv`, AMD Radeon GPU (PaddleOCR can't use it).
 - Never commit `eval/preds/` (contains receipt OCR text incl. TINs).
