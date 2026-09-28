@@ -1,0 +1,14 @@
+{
+  "key": "218cd0efd31ac37d",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "DATA BLITZ",
+    "date": "2025-12-21",
+    "total": 15190.0,
+    "vat_amount": 1627.5,
+    "vatable_sales": 13562.5,
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0
+  },
+  "seconds": 8.95
+}

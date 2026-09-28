@@ -1,0 +1,14 @@
+{
+  "key": "690ad852285fdc7d",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "THE MARKETPLACE",
+    "date": "2026-09-11",
+    "total": 918.0,
+    "vat_amount": 98.36,
+    "vatable_sales": 819.64,
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0
+  },
+  "seconds": 9.04
+}
