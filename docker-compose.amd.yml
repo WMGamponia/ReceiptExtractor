@@ -1,0 +1,9 @@
+# Runs the Ollama container on an AMD GPU with ROCm. Linux only: Docker Desktop on Windows/macOS
+# can't pass AMD GPUs through (on Windows, use Ollama on the host instead, see docker-compose.yml).
+#   docker compose -f docker-compose.yml -f docker-compose.amd.yml --profile ai up --build
+services:
+  ollama:
+    image: ollama/ollama:rocm
+    devices:
+      - /dev/kfd
+      - /dev/dri

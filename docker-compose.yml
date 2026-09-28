@@ -1,0 +1,57 @@
+# Receipt Tracker with Docker. See "Run with Docker" in README.md.
+#
+#   docker compose up --build              the app on http://localhost:5080 (no AI model: uploads can't be read yet)
+#   docker compose --profile ai up --build   also runs Ollama and downloads the vision model (~6 GB) so uploads get read
+#
+# Already have Ollama on this PC (faster: it can use your GPU)?
+#   OLLAMA_URL=http://host.docker.internal:11434 docker compose up --build
+# GPU for the Ollama container: add -f docker-compose.nvidia.yml (NVIDIA) or -f docker-compose.amd.yml (AMD, Linux only).
+name: receipt-tracker
+
+services:
+  app:
+    build: .
+    image: receipt-tracker
+    ports:
+      - "5080:5080"
+    environment:
+      Ollama__BaseUrl: ${OLLAMA_URL:-http://ollama:11434}
+      Ollama__Model: ${MODEL:-qwen3-vl:8b-instruct} # keep the default in sync with appsettings.json
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # for OLLAMA_URL on Linux (Docker Desktop has it built in)
+    volumes:
+      - app-data:/app/data
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    profiles: [ai]
+    # No ports: only the app talks to it, and 11434 may already be taken by Ollama on the host.
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+
+  # Downloads the model once (skipped if it's already there), then exits. Follow it with:
+  #   docker compose logs -f ollama-pull
+  ollama-pull:
+    image: ollama/ollama
+    profiles: [ai]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      MODEL: ${MODEL:-qwen3-vl:8b-instruct}
+    volumes:
+      - ./scripts/pull-model.sh:/pull-model.sh:ro
+    entrypoint: ["/bin/sh", "/pull-model.sh"]
+    restart: "no"
+
+volumes:
+  app-data:       # receipts.db and receipt images
+  ollama-models:  # downloaded models, so they survive `docker compose down`

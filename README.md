@@ -2,7 +2,7 @@
 
 Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export.
+> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaging (step 7): Windows exe and `docker compose up` work; seed data is next.
 >
 > _Last updated: 2026-09-28_
 
@@ -60,6 +60,8 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **PH receipts have a built-in checksum.** VAT is included in the total, so `vatable sales + VAT = total` and `VAT = total × 12/112`. Checking that flagged every bad Tesseract result and none of the vision results — it'll be used in the app to send suspicious receipts to review.
 - **Prompts are suggestions; code is a rule.** Asking for "centavos exactly as printed" fixed dropped decimals, but the model still ignored a rule about marketplace names. Exact rules belong in code after extraction.
 
+**Known issues (Docker):** reading receipts on CPU is slow — `qwen3-vl:2b-instruct` took 99s per receipt in Docker on a 24-thread CPU (and missed the date); the 8B model is slower and needs ~8 GB of RAM for Docker. Docker Desktop can't use AMD GPUs on Windows, so use Ollama on the host there. The NVIDIA and AMD override files are untested (no hardware to try them on).
+
 **Known issues:** adding VAT-exempt sales and discount to the prompt cost some accuracy: the WCSI receipt's merchant and date are now misread ("WAL TER-APM", 2026-11-01), and on the handwritten FLYQUIP receipt a ₱680 line item next to the empty SC/PWD discount box was read as a discount. The tax-table and "Less VAT" prompt notes came after this run, so re-run `python eval/run_eval.py --only vision` to measure the current prompt. None of the labeled receipts has a real discount yet. The Lazada receipt comes back as "LAZADA Edifier" instead of "LAZADA". Seven receipts is a small sample — the dataset is growing toward 30–50, including handwritten sari-sari receipts.
 
 ## Running the evaluation
@@ -98,6 +100,37 @@ That creates **`publish\ReceiptTracker.exe`**, a single file containing the API 
 - To change settings (model, Ollama address, port) without rebuilding, put a `settings.json` next to the exe, e.g. `{ "Ollama": { "Model": "qwen3-vl:4b-instruct" } }`.
 - To use it from your phone on the same Wi-Fi: `ReceiptTracker.exe --urls http://0.0.0.0:5080`, then open `http://<your-PC's-IP>:5080`. This makes it reachable by anyone on your network, since there are no logins.
 - Windows may show a SmartScreen warning the first time because the exe isn't code-signed: **More info → Run anyway**.
+
+## Run with Docker
+
+Requirements: [Docker](https://www.docker.com/products/docker-desktop/) (Docker Desktop on Windows/macOS). Nothing else — no .NET, Node or Ollama.
+
+```bash
+docker compose up --build
+```
+
+Open http://localhost:5080. This runs the app (API + web app + SQLite database in the `app-data` volume) without the AI model, so it's a ~1 GB download: every screen works, but uploaded receipts fail with "Can't reach Ollama" until you add a model, in one of two ways:
+
+| | Command | Download | Speed per receipt |
+|---|---|---|---|
+| **Ollama already on your PC** (uses your GPU) | `OLLAMA_URL=http://host.docker.internal:11434 docker compose up --build` | nothing extra | ~10–20s on my RX 9070 XT |
+| **Ollama in Docker** | `docker compose --profile ai up --build` | + Ollama image and the 6 GB model | minutes on CPU (see below) |
+
+(PowerShell: `$env:OLLAMA_URL="http://host.docker.internal:11434"; docker compose up --build`.)
+
+- With `--profile ai`, an `ollama-pull` container downloads the model once and exits; follow it with `docker compose logs -f ollama-pull`. Receipts uploaded before it finishes can be retried with **Try again**.
+- GPU for the Ollama container: add `-f docker-compose.yml -f docker-compose.nvidia.yml` (NVIDIA) or `-f docker-compose.amd.yml` (AMD, Linux only). Docker Desktop on Windows can't pass an AMD GPU through, so on an AMD Windows PC use Ollama on the host instead.
+- A different model: `MODEL=qwen3-vl:4b-instruct docker compose --profile ai up`. Smaller models are faster but less accurate (only the 8B was scored in the bake-off).
+- Stop with `docker compose down`. Your receipts stay in the `app-data` volume; `docker compose down -v` deletes them (and the downloaded model).
+
+## Downloading the model (without Docker)
+
+`scripts\pull-model.ps1` (Windows) or `scripts/pull-model.sh` (Linux/macOS) downloads the model the app is set to use into your local Ollama, and does nothing if it's already there:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts\pull-model.ps1        # model from appsettings.json
+powershell -ExecutionPolicy Bypass -File scripts\pull-model.ps1 -Model qwen3-vl:4b-instruct
+```
 
 ## Running the API
 
@@ -145,13 +178,17 @@ npm test             # unit tests (formatting, VAT warnings)
 - **Review** — the photo next to the extracted fields; VAT math is re-checked as you type, and future dates are flagged (the model sometimes swaps day and month). The photo can be rotated, zoomed (buttons, scroll wheel, pinch, double-click) and dragged around; **Save rotation** stores the upright image without re-running extraction, and zoom is never saved. Amounts show as `10,495.00`; the **←.** / **.→** buttons next to each amount move the decimal point when the model misplaced it (`112446.00` → `1,124.46`), and if a receipt's VAT lines are missing, **Work out VAT from the total** splits it (12% VAT is included in PH totals)
 - **Add** — take a photo (opens the back camera on a phone) or drop/pick files
 
-**On your phone:** with both running, open `http://<your-PC's-IP>:5173` on the same Wi-Fi. "Take photo" opens the camera. Installing it as an app needs HTTPS, which comes with packaging (step 7).
+**On your phone:** with both running, open `http://<your-PC's-IP>:5173` on the same Wi-Fi. "Take photo" opens the camera. Installing it as an app needs HTTPS, which comes with the hosted demo link (step 9).
 
 ## Project structure
 
 ```
 ReceiptExtractor.sln
 publish.cmd      builds publish\ReceiptTracker.exe (API + web app in one file)
+Dockerfile       the same app as a Linux image (web app built in)
+docker-compose.yml         app (+ Ollama and a model download with --profile ai)
+docker-compose.nvidia.yml  / docker-compose.amd.yml: GPU for the Ollama container
+scripts/         pull-model.ps1 / pull-model.sh: download the vision model into Ollama
 src/ReceiptExtractor.Api/
   Endpoints/     HTTP endpoints (upload, status, confirm, retry, delete)
   Extraction/    Ollama client, background queue + worker
