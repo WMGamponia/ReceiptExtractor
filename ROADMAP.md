@@ -28,11 +28,16 @@ Steps to take the project from scope to finished.
 - [x] First end-to-end run against Ollama on my machine (tested with Postman)
 
 ## 5. Build the frontend
-- [ ] TypeScript PWA with camera capture
-- [ ] Review-and-correct screen
-- [ ] Dashboard
+- [x] TypeScript PWA with camera capture (React + Vite, installable, `web/`)
+- [x] Review-and-correct screen (image beside the form, live VAT check, future-date warning, fills in VAT / VATable sales from the total)
+- [x] Image viewer: rotate, zoom, pan; save the rotation without re-running extraction (zoom is view-only)
+- [x] Bulk confirm from the To-review list (checkboxes + "select all ready to confirm")
+- [x] Delete receipts — one from the review screen, or bulk from the Confirmed / All tabs (removes records and image files)
+- [x] List tab kept in the URL, so saving or cancelling a receipt returns to the tab you came from
+- [x] Dashboard (daily → yearly, per-category totals, recent-period chart) + `GET /api/summary`
 - [x] Re-extract with corrections: fields the user fixed are locked and given to the model as known-correct; it re-reads the rest
 - [x] Log every user correction (free eval data) — stored per receipt as "field: model → you"
+- [ ] First end-to-end run on my machine (laptop + phone)
 
 ## 6. Add PH-specific touches
 - [ ] PHP formatting
