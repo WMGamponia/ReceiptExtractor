@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using ReceiptExtractor.Api.Data;
 using ReceiptExtractor.Api.Endpoints;
 using ReceiptExtractor.Api.Extraction;
+using ReceiptExtractor.Api.Summaries;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +45,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi(); // OpenAPI document at /openapi/v1.json
 
 app.MapReceiptEndpoints();
+app.MapSummaryEndpoints();
 
 app.Run();
 
