@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
@@ -106,10 +107,26 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             },
         };
 
-        using var response = await http.PostAsJsonAsync("/api/chat", request, ct);
+        HttpResponseMessage sent;
+        try
+        {
+            sent = await http.PostAsJsonAsync("/api/chat", request, ct);
+        }
+        catch (HttpRequestException)
+        {
+            // First thing a new install hits (Ollama not started; Docker without the "ai" profile), so say how to fix it.
+            throw new ExtractionException(
+                $"Can't reach Ollama at {opts.BaseUrl}. Start Ollama (with Docker: docker compose --profile ai up), then use Try again.");
+        }
+
+        using var response = sent;
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(ct);
+            if (response.StatusCode == HttpStatusCode.NotFound && body.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                throw new ExtractionException(
+                    $"The model {opts.Model} isn't downloaded yet. Run scripts/pull-model (with Docker, wait for the " +
+                    "ollama-pull container to finish), then use Try again.");
             throw new ExtractionException($"Ollama returned {(int)response.StatusCode}: {body}");
         }
 
