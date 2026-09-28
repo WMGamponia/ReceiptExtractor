@@ -49,9 +49,9 @@ Steps to take the project from scope to finished.
 
 ## 7. Package it
 - [x] Windows: single `ReceiptTracker.exe` (API + web app) via `publish.cmd`; data stored next to the exe
-- [ ] Single `docker compose up` starts Ollama, API, database, and web app
-- [ ] Model-pull script
-- [ ] Seed data
+- [x] `docker compose up` starts the API + web app + SQLite (~1 GB download); `--profile ai` adds Ollama and downloads the model. Or point it at Ollama on the host (`OLLAMA_URL`) to use your GPU
+- [x] Model-pull script: `scripts/pull-model.ps1` / `.sh` (also run by the `ollama-pull` container)
+- [ ] Seed data: the 7 labeled receipts + ~40 generated ones over the last 12 months, loaded into an empty database in Docker
 
 ## 8. Tests and CI
 - [ ] Unit tests for parsing and VAT math
@@ -59,6 +59,7 @@ Steps to take the project from scope to finished.
 
 ## 9. Deploy a demo
 - [ ] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill)
+- [ ] "Try it live" link: a separate demo copy on my PC (seed data only, never my receipts) behind a Cloudflare Tunnel + Cloudflare Access allowlist; Ollama itself is never exposed
 - [ ] Record a 30-second GIF of the real local flow
 
 ## 10. Write the README
