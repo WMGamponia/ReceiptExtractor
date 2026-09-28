@@ -47,11 +47,11 @@ Steps to take the project from scope to finished.
 - [x] CSV export for freelancers tracking expenses: **Export CSV** on the Spending page for the period shown (`GET /api/receipts/export.csv`), confirmed receipts, opens cleanly in Excel
 - [x] Keep it a tracker, not a tax tool (README: "A tracker, not a tax tool")
 
-## 7. Package it
+## 7. Package it ✅
 - [x] Windows: single `ReceiptTracker.exe` (API + web app) via `publish.cmd`; data stored next to the exe
 - [x] `docker compose up` starts the API + web app + SQLite (~1 GB download); `--profile ai` adds Ollama and downloads the model. Or point it at Ollama on the host (`OLLAMA_URL`) to use your GPU
 - [x] Model-pull script: `scripts/pull-model.ps1` / `.sh` (also run by the `ollama-pull` container)
-- [ ] Seed data: the 7 labeled receipts + ~40 generated ones over the last 12 months, loaded into an empty database in Docker
+- [x] Seed data (Docker, empty database only): the 7 labeled receipts with photos wait in To review; 40 made-up receipts over the last 12 months are confirmed
 
 ## 8. Tests and CI
 - [ ] Unit tests for parsing and VAT math
