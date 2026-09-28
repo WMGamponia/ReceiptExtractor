@@ -15,7 +15,7 @@ These rules apply to every suggestion. Files in `.github/instructions/` add rule
 ## Hard rules
 - **No outbound calls** except Ollama at the configured `Ollama:BaseUrl`. No cloud APIs, telemetry/analytics SDKs, CDN scripts or web fonts.
 - **Never log, print or commit receipt contents**: field values, model output, OCR text, user hints, TINs, card digits. Log IDs, statuses, counts and durations instead.
-- **Never commit `eval/preds/`**. Receipt images need TINs and card digits redacted before they're committed.
+- **Never commit `eval/preds/`** (OCR text). `eval/model_outputs/` (extracted fields only) is committed for CI. Receipt images need TINs and card digits redacted before they're committed.
 - **Don't build non-goals** unless asked: line items, multi-user/auth, bank/GCash/Maya sync, tax filing, native app, multi-currency.
 - **Money is `decimal` (C#) / `number` rounded to centavos (TS), PHP only.** VAT is 12% and included in the total.
 - **Exact rules belong in code, not only in the prompt** — the model ignores prompt rules sometimes (see `MerchantRules`).
