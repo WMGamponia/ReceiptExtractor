@@ -6,11 +6,26 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <Product>Receipt Tracker</Product>
+    <!-- wwwroot is served with UseStaticFiles. The static web assets pipeline would copy it next to the exe
+         instead of bundling it (see BundleContentIntoExe below). -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
   </ItemGroup>
+
+  <!--
+    publish.cmd builds one ReceiptTracker.exe. The Web SDK leaves the web app (wwwroot) and appsettings.json
+    out of single-file bundles and copies them next to the exe, so an exe moved on its own served 404s and
+    ran on default settings. Bundle them; a settings.json next to the exe is still how you change settings.
+  -->
+  <Target Name="BundleContentIntoExe" BeforeTargets="_ComputeFilesToBundle" Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Update="@(ResolvedFileToPublish)" ExcludeFromSingleFile="false"
+                             Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('wwwroot')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('appsettings'))" />
+    </ItemGroup>
+  </Target>
 
 </Project>
