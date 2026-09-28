@@ -49,8 +49,17 @@ public sealed record ReceiptUpdate(
     decimal? Discount,
     string? Category);
 
+/// <summary>Bulk confirm: accept the extracted fields of several receipts as they are.</summary>
+public sealed record BulkConfirmRequest(IReadOnlyList<Guid>? Ids);
+
+public sealed record BulkSkipped(Guid Id, string Name, string Reason);
+
+public sealed record BulkConfirmResult(IReadOnlyList<ReceiptResponse> Confirmed, IReadOnlyList<BulkSkipped> Skipped);
+
 public static class ReceiptEndpoints
 {
+    private const int MaxBulk = 500;
+
     private const long MaxUploadBytes = 15 * 1024 * 1024;
 
     private static readonly Dictionary<string, (string Ext, string ContentType)> AllowedFiles =
@@ -75,6 +84,8 @@ public static class ReceiptEndpoints
             .DisableAntiforgery()
             .WithSummary("Replace the image (e.g. after rotating it). Extracted fields are kept; extraction is NOT re-run.");
         receipts.MapPut("/{id:guid}", Confirm).WithSummary("Save the reviewed/corrected fields and mark the receipt confirmed.");
+        receipts.MapPost("/confirm", ConfirmMany)
+            .WithSummary("Confirm several receipts at once, keeping their extracted fields. Ones that can't be confirmed are skipped with a reason.");
         receipts.MapPost("/{id:guid}/retry", Retry).WithSummary("Run extraction again (e.g. after it failed).");
 
         return app;
@@ -235,6 +246,69 @@ public static class ReceiptEndpoints
         await db.SaveChangesAsync(ct);
 
         return TypedResults.Ok(ReceiptResponse.From(receipt));
+    }
+
+    private static async Task<Results<Ok<BulkConfirmResult>, ValidationProblem>> ConfirmMany(
+        BulkConfirmRequest request,
+        AppDbContext db,
+        TimeProvider time,
+        CancellationToken ct)
+    {
+        var ids = request.Ids?.Distinct().ToList() ?? [];
+        if (ids.Count == 0)
+            return Invalid("ids", "Pick at least one receipt.");
+        if (ids.Count > MaxBulk)
+            return Invalid("ids", $"At most {MaxBulk} receipts at a time.");
+
+        var found = await db.Receipts.Where(r => ids.Contains(r.Id)).ToDictionaryAsync(r => r.Id, ct);
+        var today = DateOnly.FromDateTime(time.GetLocalNow().DateTime);
+        var now = time.GetUtcNow().UtcDateTime;
+
+        var confirmed = new List<ReceiptResponse>();
+        var skipped = new List<BulkSkipped>();
+
+        foreach (var id in ids)
+        {
+            if (!found.TryGetValue(id, out var receipt))
+            {
+                skipped.Add(new(id, "(unknown)", "Not found."));
+                continue;
+            }
+
+            var reason = WhyNotBulkConfirmable(receipt);
+            if (reason is not null)
+            {
+                skipped.Add(new(id, receipt.DisplayName, reason));
+                continue;
+            }
+
+            // Same as confirming in the review screen with nothing changed.
+            receipt.Flags = ReceiptValidator.Validate(receipt.Fields, today); // kept as warnings
+            receipt.Status = ReceiptStatus.Confirmed;
+            receipt.ConfirmedAtUtc = now;
+            confirmed.Add(ReceiptResponse.From(receipt));
+        }
+
+        await db.SaveChangesAsync(ct); // all-or-nothing for the ones that passed
+        return TypedResults.Ok(new BulkConfirmResult(confirmed, skipped));
+    }
+
+    /// <summary>Null if the receipt can be confirmed as-is; otherwise the reason it can't.</summary>
+    private static string? WhyNotBulkConfirmable(ReceiptRecord r)
+    {
+        switch (r.Status)
+        {
+            case ReceiptStatus.Queued or ReceiptStatus.Processing: return "Still being read.";
+            case ReceiptStatus.Failed: return "Extraction failed — open it and retry.";
+            case ReceiptStatus.Confirmed: return "Already confirmed.";
+        }
+
+        // Same required fields as the review screen (SCOPE.md).
+        var missing = new List<string>();
+        if (r.Date is null) missing.Add("date");
+        if (r.Total is not > 0) missing.Add("total");
+        if (Categories.Normalize(r.Category) is null) missing.Add("category");
+        return missing.Count > 0 ? $"Missing {string.Join(", ", missing)} — open it to fill in." : null;
     }
 
     private static async Task<Results<Accepted<ReceiptResponse>, NotFound, Conflict<string>>> Retry(
