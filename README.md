@@ -2,7 +2,7 @@
 
 Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches in progress (step 6).
+> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export.
 >
 > _Last updated: 2026-09-28_
 
@@ -115,6 +115,7 @@ dotnet test                                       # unit tests
 | `POST /api/receipts` | Upload a JPG/PNG (form field `file`). Returns **202** right away; extraction runs in the background |
 | `GET /api/receipts/{id}` | Status (`Queued` → `Processing` → `Extracted` / `NeedsReview` / `Failed`), fields and review flags |
 | `GET /api/receipts` | All receipts, newest first |
+| `GET /api/receipts/export.csv?from=&to=` | Confirmed receipts as a CSV file, oldest first. Both dates optional; `to` is the day *after* the last one (like the summary's `end`) |
 | `GET /api/receipts/{id}/image` | The receipt image |
 | `PUT /api/receipts/{id}/image` | Replace the image (e.g. rotated). Fields are kept, extraction is **not** re-run; the first version is backed up as `{id}.original.jpg` |
 | `PUT /api/receipts/{id}` | Save reviewed/corrected fields → `Confirmed` |
@@ -139,7 +140,7 @@ npm run dev          # http://localhost:5173 — /api calls are proxied to the A
 npm test             # unit tests (formatting, VAT warnings)
 ```
 
-- **Spending** — totals for any day, ISO week, month, calendar quarter or year, broken down by category (confirmed receipts only)
+- **Spending** — totals for any day, ISO week, month, calendar quarter or year, broken down by category (confirmed receipts only). **Export CSV** downloads the period's receipts for a spreadsheet: date (`20251220`), merchant, category, total, VAT, VATable / VAT-exempt sales, discount. Amounts are plain numbers (`1124.46`) so the spreadsheet can add them up
 - **Receipts** — everything waiting for review, with status updating live while the model reads. Tick receipts (or **Select all ready to confirm**) and confirm them in one go; anything that failed a check is called out before you confirm
 - **Review** — the photo next to the extracted fields; VAT math is re-checked as you type, and future dates are flagged (the model sometimes swaps day and month). The photo can be rotated, zoomed (buttons, scroll wheel, pinch, double-click) and dragged around; **Save rotation** stores the upright image without re-running extraction, and zoom is never saved. Amounts show as `10,495.00`; the **←.** / **.→** buttons next to each amount move the decimal point when the model misplaced it (`112446.00` → `1,124.46`), and if a receipt's VAT lines are missing, **Work out VAT from the total** splits it (12% VAT is included in PH totals)
 - **Add** — take a photo (opens the back camera on a phone) or drop/pick files
@@ -158,6 +159,7 @@ src/ReceiptExtractor.Api/
   Data/          EF Core entity + DbContext (SQLite)
   Summaries/     period math (ISO weeks, calendar quarters) + GET /api/summary
   Hosting/       desktop mode: data folder next to the exe, opens the browser, checks Ollama
+  Export/        CSV export (Excel-friendly: UTF-8 BOM, formula-safe text)
 tests/ReceiptExtractor.Tests/   xUnit tests
 web/
   src/pages/     Dashboard, Receipts, Review, Upload

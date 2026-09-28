@@ -198,7 +198,8 @@ button:disabled { opacity: 0.6; cursor: default; }
 .field-action .link { padding: 0; }
 
 /* Dashboard */
-.period-nav { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+.period-nav { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.period-export { margin-left: auto; }
 .stats { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 .stat {
   display: grid; gap: 0.2rem; background: var(--surface); border: 1px solid var(--border);
