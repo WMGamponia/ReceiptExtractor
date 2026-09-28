@@ -49,8 +49,8 @@ public static class DesktopMode
 
         Console.WriteLine();
         Console.WriteLine("  Receipt Tracker is running at " + url);
-        Console.WriteLine("  Your data is in " + DataRoot(app.Environment));
-        Console.WriteLine("  Close this window to stop it.");
+        Console.WriteLine("  Your data is in " + (InContainer ? "the app-data volume" : DataRoot(app.Environment)));
+        Console.WriteLine(InContainer ? "  Stop it with: docker compose down" : "  Close this window to stop it.");
         Console.WriteLine();
 
         if (app.Configuration.GetValue("OpenBrowser", true))
@@ -71,7 +71,13 @@ public static class DesktopMode
             var tags = await http.GetFromJsonAsync<TagsResponse>("/api/tags");
             var installed = tags?.Models?.Select(m => m.Name).ToList() ?? [];
 
-            if (!installed.Any(name => name.Equals(options.Model, StringComparison.OrdinalIgnoreCase)))
+            if (installed.Any(name => name.Equals(options.Model, StringComparison.OrdinalIgnoreCase)))
+                return;
+            if (InContainer)
+                app.Logger.LogWarning(
+                    "Ollama is running but the model {Model} isn't downloaded yet. Follow the download with:  docker compose logs -f ollama-pull",
+                    options.Model);
+            else
                 app.Logger.LogWarning(
                     "Ollama is running but the model {Model} isn't downloaded. Run:  ollama pull {Model}",
                     options.Model, options.Model);
@@ -79,11 +85,17 @@ public static class DesktopMode
         catch (Exception)
         {
             app.Logger.LogWarning(
-                "Can't reach Ollama at {Url}. Start the Ollama app — until then, uploads will fail " +
-                "(use 'Try again' on the receipt once Ollama is running).",
+                InContainer
+                    ? "Can't reach Ollama at {Url}, so uploads can't be read. Everything else works. To read receipts, " +
+                      "run  docker compose --profile ai up  (or point OLLAMA_URL at Ollama on your PC), then use 'Try again'."
+                    : "Can't reach Ollama at {Url}. Start the Ollama app — until then, uploads will fail " +
+                      "(use 'Try again' on the receipt once Ollama is running).",
                 options.BaseUrl);
         }
     }
+
+    /// <summary>Running in the Docker image (docker-compose.yml) rather than as ReceiptTracker.exe. Set by the .NET base images.</summary>
+    private static bool InContainer => Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true";
 
     private sealed record TagsResponse([property: JsonPropertyName("models")] List<TagModel>? Models);
 
