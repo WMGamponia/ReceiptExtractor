@@ -43,6 +43,12 @@ public sealed class ReceiptRecord
     /// <summary>Fields the user changed when confirming, e.g. "total: 10,494.00 → 10,495.00". Free eval data.</summary>
     public List<string> Corrections { get; set; } = [];
 
+    /// <summary>
+    /// Fields the user corrected before asking for a re-extraction (names as in the model's JSON, e.g. "total").
+    /// The worker tells the model these values are correct and keeps them. Cleared once extraction succeeds.
+    /// </summary>
+    public List<string> LockedFields { get; set; } = [];
+
     public double? ExtractionSeconds { get; set; }
     public string? Error { get; set; }
     public DateTime? ConfirmedAtUtc { get; set; }

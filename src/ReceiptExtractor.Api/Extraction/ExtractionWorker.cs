@@ -74,15 +74,28 @@ public sealed class ExtractionWorker(
         receipt.Error = null;
         await db.SaveChangesAsync(ct);
 
+        // Fields the user corrected and asked to keep ("re-extract with my changes").
+        var locked = receipt.LockedFields.Where(UserHints.IsKnown).ToHashSet();
+        var userFields = receipt.Fields;
+        var userCategory = receipt.Category;
+        var hints = UserHints.Describe(userFields, userCategory, locked);
+
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var result = await extractor.ExtractAsync(receipt.ImagePath, ct);
+            var result = await extractor.ExtractAsync(receipt.ImagePath, hints, ct);
             var today = DateOnly.FromDateTime(time.GetLocalNow().DateTime);
 
-            receipt.ApplyFields(result.Fields, result.Category);
-            receipt.ModelOutput = result.ModelOutput;
-            receipt.Flags = ReceiptValidator.Validate(result.Fields, today);
+            var fields = UserHints.Keep(result.Fields, userFields, locked);
+            var category = locked.Contains(UserHints.Category) ? userCategory : result.Category;
+            receipt.ApplyFields(fields, category);
+
+            // Keep the first, unaided answer: it's what corrections are measured against (free eval data).
+            if (hints.Count == 0 || receipt.ModelOutput is null)
+                receipt.ModelOutput = result.ModelOutput;
+
+            receipt.LockedFields = [];
+            receipt.Flags = ReceiptValidator.Validate(fields, today);
             receipt.Status = receipt.Flags.Count > 0 ? ReceiptStatus.NeedsReview : ReceiptStatus.Extracted;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

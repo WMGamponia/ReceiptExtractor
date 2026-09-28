@@ -34,6 +34,15 @@ Content-Type: application/json
 ### Retry a failed extraction
 POST {{Api}}/api/receipts/{{id}}/retry
 
+### Re-extract, keeping the fields you corrected (the model is told they're correct)
+POST {{Api}}/api/receipts/{{id}}/reextract
+Content-Type: application/json
+
+{
+  "fields": { "total": 443.86, "vatAmount": 23.14 },
+  "locked": ["total", "vat_amount"]
+}
+
 ### Delete a receipt and its image files
 DELETE {{Api}}/api/receipts/{{id}}
 
