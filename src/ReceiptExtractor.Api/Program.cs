@@ -44,15 +44,10 @@ var connection = new SqliteConnectionStringBuilder(
 connection.DataSource = DesktopMode.InDataRoot(dataRoot, connection.DataSource);
 builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(connection.ToString()));
 
-builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection("Ollama"));
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.PostConfigure<StorageOptions>(o => o.ReceiptsPath = DesktopMode.InDataRoot(dataRoot, o.ReceiptsPath));
 
-builder.Services.AddHttpClient<IReceiptExtractor, OllamaExtractor>((sp, http) =>
-{
-    http.BaseAddress = new Uri(sp.GetRequiredService<IOptions<OllamaOptions>>().Value.BaseUrl);
-    http.Timeout = TimeSpan.FromMinutes(5); // the first call also loads the model onto the GPU
-});
+builder.Services.AddOllamaExtractor(builder.Configuration);
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ExtractionQueue>();
