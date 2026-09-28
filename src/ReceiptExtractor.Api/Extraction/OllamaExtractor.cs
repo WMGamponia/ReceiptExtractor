@@ -37,10 +37,18 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         - merchant: the store or company name as printed at the top. For online
           orders, the marketplace (e.g. Lazada, Shopee), not the seller's shop name
         - date: the transaction date, converted to YYYY-MM-DD
-        - total: the final amount paid (TOTAL / AMOUNT DUE), not cash tendered or change
-        - vat_amount: the "VAT Amount" / "12% VAT" line; 0 if the receipt has none
+        - total: the final amount paid (TOTAL / AMOUNT DUE) after discounts, not cash tendered or change
+        - vat_amount: the "VAT Amount" / "12% VAT" line; 0 if the receipt has none.
+          Not the "Less 12% VAT" / "Less VAT" line of a senior citizen / PWD computation
+          (that is VAT removed from exempt items, not VAT charged)
         - vatable_sales: the "VATable Sales" line; 0 if the receipt has none
+        - vat_exempt_sales: the "VAT-Exempt Sales" line; 0 if the receipt has none
+        - discount: all discounts on the receipt added up (senior citizen, PWD, promo, etc.),
+          as a positive number; 0 if there are none. "Less VAT" lines are not discounts
         - category: the best fit of Food, Transport, Groceries, Health, Utilities, Other
+        Some receipts print the VAT breakdown as a tax table (Tax Code / RATE / Amount / TAX amt)
+        instead of labeled lines: the V (12%) row's Amount is vatable_sales and its TAX is vat_amount,
+        and the E (0%) row's Amount is vat_exempt_sales.
         Amounts are in PHP. Numbers only, no commas or peso signs.
         Use null if a field is unreadable.
         """;
@@ -55,10 +63,12 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             "total":         { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "vat_amount":    { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "vatable_sales": { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
+            "vat_exempt_sales": { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
+            "discount":      { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "category":      { "type": "string",
                                "enum": [ "Food", "Transport", "Groceries", "Health", "Utilities", "Other" ] }
           },
-          "required": [ "merchant", "date", "total", "vat_amount", "vatable_sales", "category" ]
+          "required": [ "merchant", "date", "total", "vat_amount", "vatable_sales", "vat_exempt_sales", "discount", "category" ]
         }
         """).RootElement.Clone();
 
@@ -126,13 +136,18 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             date,
             Money(model.Total),
             Money(model.VatAmount),
-            Money(model.VatableSales));
+            Money(model.VatableSales),
+            Money(model.VatExemptSales),
+            PositiveMoney(model.Discount));
 
         return new ExtractionResult(fields, Categories.Normalize(model.Category), json);
     }
 
     private static decimal? Money(decimal? value) =>
         value is { } v ? Math.Round(v, 2, MidpointRounding.AwayFromZero) : null;
+
+    /// <summary>Discounts are often printed as "-20.00"; we store them as positive amounts.</summary>
+    private static decimal? PositiveMoney(decimal? value) => Money(value) is { } v ? Math.Abs(v) : null;
 
     private sealed class ModelReceipt
     {
@@ -141,6 +156,8 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         [JsonPropertyName("total")] public decimal? Total { get; set; }
         [JsonPropertyName("vat_amount")] public decimal? VatAmount { get; set; }
         [JsonPropertyName("vatable_sales")] public decimal? VatableSales { get; set; }
+        [JsonPropertyName("vat_exempt_sales")] public decimal? VatExemptSales { get; set; }
+        [JsonPropertyName("discount")] public decimal? Discount { get; set; }
         [JsonPropertyName("category")] public string? Category { get; set; }
     }
 

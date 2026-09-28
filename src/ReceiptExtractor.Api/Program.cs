@@ -34,7 +34,11 @@ var app = builder.Build();
 // Create the database tables if they don't exist yet.
 // (Switch to EF Core migrations once the schema starts changing.)
 using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+    SchemaPatches.Apply(db); // add columns introduced since the database was created
+}
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi(); // OpenAPI document at /openapi/v1.json
