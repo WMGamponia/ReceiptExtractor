@@ -46,7 +46,15 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         - vat_exempt_sales: the "VAT-Exempt Sales" line; 0 if the receipt has none
         - discount: all discounts on the receipt added up (senior citizen, PWD, promo, etc.),
           as a positive number; 0 if there are none. "Less VAT" lines are not discounts
-        - category: the best fit of Food, Transport, Groceries, Health, Utilities, Other
+        - category: the best fit of:
+          Food (restaurants, fast food, cafes, carinderia),
+          Groceries (supermarkets, sari-sari stores, public markets),
+          Transport (Grab, taxis, buses, LRT/MRT, tolls, parking),
+          Fuel (gas stations such as Petron, Shell, Caltex, Seaoil),
+          Health (pharmacies such as Mercury Drug, Watsons, clinics, labs),
+          Utilities (electricity, water, internet, mobile load, e.g. Meralco, Maynilad, PLDT, Globe),
+          Shopping (Lazada, Shopee, department stores, gadgets, clothes, hardware),
+          Other
         Some receipts print the VAT breakdown as a tax table (Tax Code / RATE / Amount / TAX amt)
         instead of labeled lines: the V (12%) row's Amount is vatable_sales and its TAX is vat_amount,
         and the E (0%) row's Amount is vat_exempt_sales.
@@ -67,7 +75,7 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             "vat_exempt_sales": { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "discount":      { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "category":      { "type": "string",
-                               "enum": [ "Food", "Transport", "Groceries", "Health", "Utilities", "Other" ] }
+                               "enum": [ "Food", "Groceries", "Transport", "Fuel", "Health", "Utilities", "Shopping", "Other" ] }
           },
           "required": [ "merchant", "date", "total", "vat_amount", "vatable_sales", "vat_exempt_sales", "discount", "category" ]
         }

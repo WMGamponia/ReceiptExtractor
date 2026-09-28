@@ -3,7 +3,7 @@
 
 export type ReceiptStatus = 'Queued' | 'Processing' | 'Extracted' | 'NeedsReview' | 'Confirmed' | 'Failed'
 
-export const CATEGORIES = ['Food', 'Transport', 'Groceries', 'Health', 'Utilities', 'Other'] as const
+export const CATEGORIES = ['Food', 'Groceries', 'Transport', 'Fuel', 'Health', 'Utilities', 'Shopping', 'Other'] as const
 export type Category = (typeof CATEGORIES)[number]
 
 export type Period = 'Daily' | 'Weekly' | 'Monthly' | 'Quarterly' | 'Yearly'

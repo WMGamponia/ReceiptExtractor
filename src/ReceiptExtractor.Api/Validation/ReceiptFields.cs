@@ -13,7 +13,9 @@ public sealed record ReceiptFields(
 /// <summary>Categories from SCOPE.md.</summary>
 public static class Categories
 {
-    public static readonly string[] All = ["Food", "Transport", "Groceries", "Health", "Utilities", "Other"];
+    // Only ever add: receipts store the category as text, so renaming one would orphan existing receipts.
+    // Keep in sync with the schema enum in OllamaExtractor and CATEGORIES in web/src/api.ts.
+    public static readonly string[] All = ["Food", "Groceries", "Transport", "Fuel", "Health", "Utilities", "Shopping", "Other"];
 
     /// <summary>Case-insensitive match to a known category; anything else becomes null.</summary>
     public static string? Normalize(string? value) =>
