@@ -14,6 +14,7 @@ public static class SchemaPatches
     [
         (nameof(ReceiptRecord.VatExemptSales), "TEXT NULL"),
         (nameof(ReceiptRecord.Discount), "TEXT NULL"),
+        (nameof(ReceiptRecord.Corrections), "TEXT NOT NULL DEFAULT '[]'"),
         (nameof(ReceiptRecord.LockedFields), "TEXT NOT NULL DEFAULT '[]'"),
     ];
 
