@@ -1,0 +1,14 @@
+{
+  "key": "0cf7dd513603cda6",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "LAZADA Edifier",
+    "date": "2023-12-09",
+    "total": 8443.0,
+    "vat_amount": 0.0,
+    "vatable_sales": 0.0,
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0
+  },
+  "seconds": 16.84
+}

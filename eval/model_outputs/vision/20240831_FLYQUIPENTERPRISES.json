@@ -1,0 +1,14 @@
+{
+  "key": "67e7a16d4e1eb66a",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "FLYQUIP ENTERPRISES",
+    "date": "2024-08-31",
+    "total": 27840.0,
+    "vat_amount": 0.0,
+    "vatable_sales": 0.0,
+    "vat_exempt_sales": 27840.0,
+    "discount": 0.0
+  },
+  "seconds": 9.02
+}

@@ -1,0 +1,65 @@
+# Runs on every PR and on main. No GPU and no Ollama here: the eval job scores the model outputs
+# committed in eval/model_outputs/ (see "Continuous integration" in README.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API tests (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet test
+
+  web:
+    name: Web app (lint, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  eval:
+    name: Extraction eval (cached model outputs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      # Only what scoring needs; the OCR libraries in requirements.txt aren't used offline.
+      - run: pip install "ollama>=0.5.1" "pydantic>=2"
+      - name: Scoring tests
+        run: python -m unittest discover -s eval -p "test_*.py"
+      # Fails if the prompt, model or dataset changed without re-running the eval (stale outputs),
+      # or if core accuracy is under the 85% target from SCOPE.md. The table goes on the run's summary page.
+      - name: Score the committed model outputs
+        run: python eval/run_eval.py --offline --only vision --check
+
+  docker:
+    name: Docker image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t receipt-tracker .

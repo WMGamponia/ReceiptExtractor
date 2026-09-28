@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import vatCases from '../../tests/vat-cases.json'
 import {
   formatDate,
   formatMoneyInput,
@@ -79,6 +80,12 @@ describe('vatWarnings (mirrors ReceiptValidator.cs)', () => {
     expect(vatWarnings(amounts(1000, 107.14, 892.86, 0, 50))).toEqual([]))
   it('flags an exempt breakdown that does not add up', () =>
     expect(vatWarnings(amounts(400, 0, 0, 500, 80))[0]).toContain('VAT-exempt sales'))
+
+  // Same cases as ReceiptValidator.VatFlags (C#) and vat_check (eval), so the three can't drift apart.
+  it.each(vatCases.cases)('matches the shared case: $name', (c) =>
+    expect(vatWarnings({ total: c.total, vat: c.vat, vatable: c.vatable, exempt: c.exempt, discount: c.discount })).toHaveLength(
+      c.problems,
+    ))
 })
 
 describe('vatComplement', () => {

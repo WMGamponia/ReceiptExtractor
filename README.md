@@ -2,7 +2,7 @@
 
 Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaged (step 7): a single Windows exe, or `docker compose up` with demo data.
+> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaged (step 7): a single Windows exe, or `docker compose up` with demo data. CI on every PR (step 8): tests, the eval scored from cached model outputs, the Docker build.
 >
 > _Last updated: 2026-09-28_
 
@@ -44,11 +44,11 @@ Both use the same model (`qwen3-vl:8b-instruct` via [Ollama](https://ollama.com)
 
 | Approach | Merchant | Date | Total | VAT | Core accuracy¹ | Median | Slowest |
 |---|---|---|---|---|---|---|---|
-| **Vision model** | 71% | 86% | 100% | 100% | **86%** ✅ | 9.3s | 18.4s |
+| **Vision model** | 71% | 86% | 100% | 100% | **86%** ✅ | 9.0s | 16.8s |
 | Tesseract + LLM | 29% | 0% | 29% | 43% | 19% ❌ | 1.5s | 2.0s |
 
 ¹ Date + merchant + total. Target: ≥ 85%, under 30s per receipt. Full breakdown: [eval/RESULTS.md](eval/RESULTS.md).
-The vision row is the latest run (2026-09-27, with VAT-exempt sales and discount in the prompt; the original bake-off scored 95%). The Tesseract row is from the original bake-off.
+The vision row is the latest run (2026-09-28, the current prompt: VAT-exempt sales, discount, tax tables and "Less VAT" lines; the original bake-off scored 95%). The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
 
 PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, but ~85s per receipt, because PaddleOCR can't use an AMD GPU on Windows.
 
@@ -62,7 +62,7 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 
 **Known issues (Docker):** reading receipts on CPU is slow — `qwen3-vl:2b-instruct` took 99s per receipt in Docker on a 24-thread CPU (and missed the date); the 8B model is slower and needs ~8 GB of RAM for Docker. Docker Desktop can't use AMD GPUs on Windows, so use Ollama on the host there. The NVIDIA and AMD override files are untested (no hardware to try them on).
 
-**Known issues:** adding VAT-exempt sales and discount to the prompt cost some accuracy: the WCSI receipt's merchant and date are now misread ("WAL TER-APM", 2026-11-01), and on the handwritten FLYQUIP receipt a ₱680 line item next to the empty SC/PWD discount box was read as a discount. The tax-table and "Less VAT" prompt notes came after this run, so re-run `python eval/run_eval.py --only vision` to measure the current prompt. None of the labeled receipts has a real discount yet. The Lazada receipt comes back as "LAZADA Edifier" instead of "LAZADA". Seven receipts is a small sample — the dataset is growing toward 30–50, including handwritten sari-sari receipts.
+**Known issues:** adding VAT-exempt sales and discount to the prompt cost some accuracy: the WCSI receipt's merchant and date are misread ("WAL TER-APM", 2026-11-01). The later tax-table and "Less VAT" notes fixed the FLYQUIP receipt's false ₱680 discount, but now its whole total comes back as VAT-exempt sales, and WCSI's total as VATable sales with no VAT (the VAT check catches that one). Core accuracy is 86%, one miss above the 85% target, so the next prompt change that costs a field will fail CI. None of the labeled receipts has a real discount yet. The Lazada receipt comes back as "LAZADA Edifier" instead of "LAZADA". Seven receipts is a small sample — the dataset is growing toward 30–50, including handwritten sari-sari receipts.
 
 ## Running the evaluation
 
@@ -85,6 +85,25 @@ python eval/run_eval.py --only vision tesseract
 ```
 
 Predictions are cached in `eval/preds/` and re-run automatically when the model or prompt changes (`--fresh` forces a re-run).
+`eval/preds/` holds OCR text, so it's never committed; each run also saves the extracted fields and timing (no OCR text) to `eval/model_outputs/`, which **is** committed so CI can score the eval without a GPU. **After changing the prompt, re-run the eval and commit `eval/model_outputs/`**, or CI fails.
+
+```bash
+python eval/run_eval.py --offline --only vision --check   # score the committed outputs, like CI
+python -m unittest discover -s eval -p "test_*.py"        # scoring rules
+```
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request and on `main`, with four jobs:
+
+| Job | What it checks |
+|---|---|
+| API tests | `dotnet test` (parsing, VAT math, periods, CSV, seed data, and that the app's prompt matches the eval's) |
+| Web app | `npm run lint`, `npm test`, `npm run build` |
+| Extraction eval | Scores the committed `eval/model_outputs/` (no GPU, no Ollama). **Fails** if core accuracy drops under 85%, or if the prompt, model or dataset changed without re-running the eval. The results table is on the run's summary page |
+| Docker | `docker build` |
+
+The VAT check lives in three places (API, web app, eval), so all three are tested against the same cases in `tests/vat-cases.json`.
 
 ## Run it as a desktop app (Windows)
 
@@ -207,6 +226,8 @@ src/ReceiptExtractor.Api/
   Seeding/       demo data for an empty database (Docker): labeled receipts + made-up ones
   Export/        CSV export (Excel-friendly: UTF-8 BOM, formula-safe text)
 tests/ReceiptExtractor.Tests/   xUnit tests
+tests/vat-cases.json            VAT check cases shared by the C#, TypeScript and Python tests
+.github/workflows/ci.yml        CI: tests, eval from cached model outputs, Docker build
 web/
   src/pages/     Dashboard, Receipts, Review, Upload
   src/api.ts     typed API client
@@ -217,7 +238,9 @@ datasets/
 eval/
   try_vision.py            one receipt through the vision model
   compare_approaches.py    vision vs Tesseract vs PaddleOCR on one receipt
-  run_eval.py              score every approach on every receipt
+  run_eval.py              score every approach on every receipt (--offline: from model_outputs/, for CI)
+  test_scoring.py          tests for the scoring rules
+  model_outputs/           extracted fields per receipt (committed; no OCR text)
   merchant_aliases.json    store name ↔ company name equivalents
   RESULTS.md               latest scores
 SCOPE.md         what the MVP does and doesn't do
@@ -226,4 +249,4 @@ ROADMAP.md       steps to finish
 
 ## Privacy note
 
-`eval/preds/` holds the full OCR text of each receipt (including TINs), so it's in `.gitignore`. Receipt images must have TINs and card digits redacted before they're committed.
+`eval/preds/` holds the full OCR text of each receipt (including TINs), so it's in `.gitignore`. `eval/model_outputs/` only has the extracted fields (merchant, date, amounts), the same values as the committed labels and `RESULTS.md`. Receipt images must have TINs and card digits redacted before they're committed.

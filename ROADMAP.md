@@ -53,9 +53,10 @@ Steps to take the project from scope to finished.
 - [x] Model-pull script: `scripts/pull-model.ps1` / `.sh` (also run by the `ollama-pull` container)
 - [x] Seed data (Docker, empty database only): the 7 labeled receipts with photos wait in To review; 40 made-up receipts over the last 12 months are confirmed
 
-## 8. Tests and CI
-- [ ] Unit tests for parsing and VAT math
-- [ ] Cache model outputs so the eval runs in GitHub Actions without a GPU
+## 8. Tests and CI ✅
+- [x] Unit tests for parsing and VAT math: xUnit, vitest and Python `unittest`; the three VAT checks share `tests/vat-cases.json`, and a test keeps the app's prompt identical to the eval's
+- [x] Cache model outputs so the eval runs in GitHub Actions without a GPU: `eval/model_outputs/` (fields only, no OCR text), scored with `run_eval.py --offline --check`; CI fails under 85% core accuracy or on stale outputs
+- [x] GitHub Actions on every PR: API tests, web lint/test/build, eval, Docker build
 
 ## 9. Deploy a demo
 - [ ] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill)
