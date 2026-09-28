@@ -56,6 +56,11 @@ public sealed record BulkSkipped(Guid Id, string Name, string Reason);
 
 public sealed record BulkConfirmResult(IReadOnlyList<ReceiptResponse> Confirmed, IReadOnlyList<BulkSkipped> Skipped);
 
+/// <summary>Bulk delete: remove several receipts and their image files.</summary>
+public sealed record BulkDeleteRequest(IReadOnlyList<Guid>? Ids);
+
+public sealed record BulkDeleteResult(IReadOnlyList<Guid> Deleted, IReadOnlyList<BulkSkipped> Skipped);
+
 public static class ReceiptEndpoints
 {
     private const int MaxBulk = 500;
@@ -87,6 +92,10 @@ public static class ReceiptEndpoints
         receipts.MapPost("/confirm", ConfirmMany)
             .WithSummary("Confirm several receipts at once, keeping their extracted fields. Ones that can't be confirmed are skipped with a reason.");
         receipts.MapPost("/{id:guid}/retry", Retry).WithSummary("Run extraction again (e.g. after it failed).");
+        receipts.MapDelete("/{id:guid}", Delete)
+            .WithSummary("Delete a receipt and its image files (including the pre-rotation backup). Not allowed while the model is reading it.");
+        receipts.MapPost("/delete", DeleteMany)
+            .WithSummary("Delete several receipts and their image files. Ones the model is reading right now are skipped with a reason.");
 
         return app;
     }
@@ -325,6 +334,72 @@ public static class ReceiptEndpoints
         await queue.EnqueueAsync(id, ct);
 
         return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt));
+    }
+
+    private const string BusyReading = "The model is reading this receipt right now. Try again once it's done.";
+
+    private static async Task<Results<NoContent, NotFound, Conflict<string>>> Delete(
+        Guid id, AppDbContext db, ILoggerFactory logs, CancellationToken ct)
+    {
+        var receipt = await db.Receipts.FindAsync([id], ct);
+        if (receipt is null)
+            return TypedResults.NotFound();
+        // The worker has the image open and is about to save its result; let it finish first.
+        // (Queued is fine: the worker skips receipts that no longer exist.)
+        if (receipt.Status is ReceiptStatus.Processing)
+            return TypedResults.Conflict(BusyReading);
+
+        await RemoveAsync([receipt], db, logs, ct);
+        return TypedResults.NoContent();
+    }
+
+    private static async Task<Results<Ok<BulkDeleteResult>, ValidationProblem>> DeleteMany(
+        BulkDeleteRequest request, AppDbContext db, ILoggerFactory logs, CancellationToken ct)
+    {
+        var ids = request.Ids?.Distinct().ToList() ?? [];
+        if (ids.Count == 0)
+            return Invalid("ids", "Pick at least one receipt.");
+        if (ids.Count > MaxBulk)
+            return Invalid("ids", $"At most {MaxBulk} receipts at a time.");
+
+        var found = await db.Receipts.Where(r => ids.Contains(r.Id)).ToDictionaryAsync(r => r.Id, ct);
+        var toDelete = new List<ReceiptRecord>();
+        var skipped = new List<BulkSkipped>();
+
+        foreach (var id in ids)
+        {
+            if (!found.TryGetValue(id, out var receipt))
+                skipped.Add(new(id, "(unknown)", "Not found — maybe already deleted."));
+            else if (receipt.Status is ReceiptStatus.Processing)
+                skipped.Add(new(id, receipt.DisplayName, BusyReading));
+            else
+                toDelete.Add(receipt);
+        }
+
+        await RemoveAsync(toDelete, db, logs, ct);
+        return TypedResults.Ok(new BulkDeleteResult(toDelete.Select(r => r.Id).ToList(), skipped));
+    }
+
+    /// <summary>
+    /// Records first (one transaction), then files: if a file is locked we're left with a stray file,
+    /// never with a record whose image is gone.
+    /// </summary>
+    private static async Task RemoveAsync(
+        IReadOnlyCollection<ReceiptRecord> receipts, AppDbContext db, ILoggerFactory logs, CancellationToken ct)
+    {
+        if (receipts.Count == 0)
+            return;
+
+        db.Receipts.RemoveRange(receipts);
+        await db.SaveChangesAsync(ct);
+
+        foreach (var receipt in receipts)
+        {
+            var leftovers = ReceiptFiles.DeleteAll(receipt.ImagePath, receipt.Id);
+            if (leftovers.Count > 0)
+                logs.CreateLogger(typeof(ReceiptEndpoints)).LogWarning(
+                    "Deleted receipt {ReceiptId} but couldn't delete {Files}", receipt.Id, string.Join(", ", leftovers));
+        }
     }
 
     private static ValidationProblem Invalid(string field, string message) =>
