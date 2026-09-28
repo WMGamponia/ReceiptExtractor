@@ -60,7 +60,9 @@ Steps to take the project from scope to finished.
 
 ## 9. Deploy a demo
 - [ ] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill)
-- [ ] "Try it live" link: a separate demo copy on my PC (seed data only, never my receipts) behind a Cloudflare Tunnel + Cloudflare Access allowlist; Ollama itself is never exposed
+  - [x] Demo build (`npm run build:demo`): made-up data in the browser; synthetic receipts (no real photos) with the real model's answers
+  - [ ] Connect the repo to Cloudflare Pages and put the link in the README
+- [ ] "Try it live" link: a separate demo copy on my PC (seed data only, never my receipts); Ollama itself is never exposed. No domain yet, so no Cloudflare Access: Tailscale Funnel or a quick tunnel, with limits in the app
 - [ ] Record a 30-second GIF of the real local flow
 
 ## 10. Write the README

@@ -18,6 +18,9 @@ Keep ROADMAP.md checkboxes in sync too.
   (User hints for "re-extract with my changes" are appended at runtime by `Extraction/UserHints.cs`; API only.)
 - Frontend: React + TypeScript + Vite PWA in `web/`; dev server proxies `/api` to the API on :5036.
   VAT checks exist in both `ReceiptValidator.cs` and `web/src/format.ts` — keep them in sync.
+  Demo site (`npm run build:demo`, Cloudflare Pages): `web/src/demo/demoApi.ts` stands in for the API in the browser;
+  when an endpoint's rules change, change demoApi too. No real receipt photos on the demo, ever: only the synthetic ones
+  from `eval/make_demo_receipts.py` (re-run its `read` step after a prompt change).
 - Packaged exe: `publish.cmd` builds web/dist into the API's wwwroot, then a self-contained single-file
   win-x64 publish. Non-Development runs use a `data` folder next to the exe and port 5080 (`Hosting/DesktopMode.cs`).
 - Docker: `Dockerfile` (same app, Linux) + `docker-compose.yml` (app only; `--profile ai` adds Ollama + `ollama-pull`).

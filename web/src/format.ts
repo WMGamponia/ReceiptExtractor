@@ -151,3 +151,11 @@ export function vatFromTotal(a: Amounts): { vat: number; vatable: number } | nul
   const vatable = round2(base / (1 + VAT_RATE))
   return { vat: round2(base - vatable), vatable }
 }
+
+/** "receipts_2026-09-01_to_2026-09-30.csv" for start Sep 1, end Oct 1 (end exclusive). Mirrors ReceiptCsv.FileName. */
+export function csvFileName(start: string, end: string): string {
+  const d = new Date(`${end}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - 1)
+  const last = d.toISOString().slice(0, 10)
+  return start === last ? `receipts_${start}.csv` : `receipts_${start}_to_${last}.csv`
+}

@@ -31,7 +31,7 @@ export function ReviewPage() {
   if (error && !receipt) return <ErrorBox message={error} />
   if (!receipt) return <p className="muted">Loading…</p>
 
-  const imageSrc = imageVersion ? `${receipt.imageUrl}?v=${imageVersion}` : receipt.imageUrl
+  const imageSrc = imageVersion && !receipt.imageUrl.startsWith('blob:') ? `${receipt.imageUrl}?v=${imageVersion}` : receipt.imageUrl
 
   async function saveRotation(rotation: Rotation) {
     const { blob, fileName } = await renderRotated(imageSrc, rotation)

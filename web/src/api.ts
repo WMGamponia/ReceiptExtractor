@@ -1,5 +1,7 @@
 // Typed client for the ASP.NET Core API (src/ReceiptExtractor.Api).
 // In dev, Vite proxies /api to http://localhost:5036 (see vite.config.ts), so no CORS setup is needed.
+// The demo site (`npm run build:demo`) has no API: there, `api` is demoApi, which works in the browser.
+import { demoApi } from './demo/demoApi'
 
 export type ReceiptStatus = 'Queued' | 'Processing' | 'Extracted' | 'NeedsReview' | 'Confirmed' | 'Failed'
 
@@ -119,7 +121,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T
 }
 
-export const api = {
+const httpApi = {
   listReceipts: () => request<Receipt[]>('/api/receipts'),
 
   getReceipt: (id: string) => request<Receipt>(`/api/receipts/${id}`),
@@ -182,3 +184,8 @@ export const api = {
   /** Download link for confirmed receipts as CSV; `to` is exclusive, like Summary.end. */
   exportCsvUrl: (from: string, to: string) => `/api/receipts/export.csv?from=${from}&to=${to}`,
 }
+
+// MODE is filled in at build time, so the normal build drops the demo code (and the demo build drops httpApi).
+export const IS_DEMO = import.meta.env.MODE === 'demo'
+
+export const api: typeof httpApi = IS_DEMO ? demoApi : httpApi

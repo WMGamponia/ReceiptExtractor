@@ -1,4 +1,6 @@
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { IS_DEMO } from './api'
+import { DemoBanner } from './demo/DemoParts'
 import { DashboardPage } from './pages/DashboardPage'
 import { ReceiptsPage } from './pages/ReceiptsPage'
 import { ReviewPage } from './pages/ReviewPage'
@@ -21,6 +23,7 @@ export default function App() {
           </NavLink>
         </nav>
       </header>
+      {IS_DEMO && <DemoBanner />}
 
       <main>
         <Routes>
@@ -32,7 +35,9 @@ export default function App() {
         </Routes>
       </main>
 
-      <footer className="app-footer">Runs entirely on your computer — receipts never leave it.</footer>
+      <footer className="app-footer">
+        {IS_DEMO ? "Demo site: nothing you do here leaves your browser." : "Runs entirely on your computer — receipts never leave it."}
+      </footer>
     </BrowserRouter>
   )
 }
