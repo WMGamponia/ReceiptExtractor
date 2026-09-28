@@ -2,6 +2,8 @@
 
 Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
 
+**Try the demo: https://receipt-tracker-demo.pages.dev** (made-up receipts, runs in your browser, no install; see [Demo site](#demo-site-no-install)).
+
 > 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaged (step 7): a single Windows exe, or `docker compose up` with demo data. CI on every PR (step 8): tests, the eval scored from cached model outputs, the Docker build.
 >
 > _Last updated: 2026-09-28_
@@ -94,7 +96,7 @@ python -m unittest discover -s eval -p "test_*.py"        # scoring rules
 
 ## Demo site (no install)
 
-`npm run build:demo` builds the web app as a static site that needs no server and no AI model, for Cloudflare Pages:
+Live at **https://receipt-tracker-demo.pages.dev**. `npm run build:demo` builds the web app as a static site that needs no server and no AI model, for Cloudflare Pages:
 
 - **Made-up data only.** 40 confirmed receipts over the past year fill the Spending page, dated relative to today so it never looks stale. Everything a visitor does stays in their browser (`localStorage`); **Reset demo** starts over.
 - **Real model answers on synthetic receipts.** Real receipt photos are personal data, so they never go on the demo. `eval/make_demo_receipts.py` draws five made-up PH receipts (made-up stores, TIN `000-000-000-000`: a carinderia, a supermarket with a VAT tax table, a pharmacy with a senior citizen discount, a tilted and faded gas-station slip, a non-VAT sari-sari store) and has the real app read them with `qwen3-vl:8b-instruct`. On **Add**, picking one replays the model's actual answer after the time it really took, mistakes included: it reads the pharmacy's `08/09/2026` as September 8 (day and month swapped) and files the sari-sari store under Food.

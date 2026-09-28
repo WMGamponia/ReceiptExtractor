@@ -59,9 +59,9 @@ Steps to take the project from scope to finished.
 - [x] GitHub Actions on every PR: API tests, web lint/test/build, eval, Docker build
 
 ## 9. Deploy a demo
-- [ ] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill)
+- [x] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill): https://receipt-tracker-demo.pages.dev
   - [x] Demo build (`npm run build:demo`): made-up data in the browser; synthetic receipts (no real photos) with the real model's answers
-  - [ ] Connect the repo to Cloudflare Pages and put the link in the README
+  - [x] Cloudflare Pages, redeploys on every push to `main`
 - [ ] "Try it live" link: a separate demo copy on my PC (seed data only, never my receipts); Ollama itself is never exposed. No domain yet, so no Cloudflare Access: Tailscale Funnel or a quick tunnel, with limits in the app
 - [ ] Record a 30-second GIF of the real local flow
 
