@@ -178,4 +178,7 @@ export const api = {
 
   getSummary: (period: Period, date?: string) =>
     request<Summary>(`/api/summary?period=${period}${date ? `&date=${date}` : ''}`),
+
+  /** Download link for confirmed receipts as CSV; `to` is exclusive, like Summary.end. */
+  exportCsvUrl: (from: string, to: string) => `/api/receipts/export.csv?from=${from}&to=${to}`,
 }

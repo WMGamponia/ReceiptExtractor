@@ -66,6 +66,16 @@ export function DashboardPage() {
             <button className="small link" onClick={() => setDate(undefined)}>
               Today
             </button>
+            {summary.count > 0 && (
+              <a
+                className="button small period-export"
+                href={api.exportCsvUrl(summary.start, summary.end)}
+                download
+                title={`Download the ${summary.count} confirmed receipts in ${summary.label} as a spreadsheet file`}
+              >
+                Export CSV
+              </a>
+            )}
           </div>
 
           <div className="stats">
