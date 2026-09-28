@@ -123,7 +123,7 @@ python eval/make_demo_receipts.py read --api http://localhost:5080
 While I run `scripts/live-demo.ps1`, visitors' **own** photos are read by the real model on my PC and the answer comes back to their browser; everything else still happens in the browser. It's off by default, and the site falls back to the samples when it is.
 
 - **Nothing is kept.** The API starts in a separate, minimal mode (`--LiveDemo:Enabled=true`, `src/ReceiptExtractor.Api/LiveDemo/`) that registers no database and no storage: two endpoints (`GET /api/live`, `POST /api/extract`), the photo read in memory and dropped. Logs have size, time and outcome only. My real app (port 5080) and Ollama are never exposed.
-- **Limits:** one photo at a time on the GPU (3 more may wait), 20 per visitor an hour, 100 per run, 2 minutes per photo, and it stops itself after 3 hours. Only `receipt-tracker-demo.pages.dev` may read the answers (CORS).
+- **Limits:** photos up to 15 MB (bigger uploads are cut off unread), one photo at a time on the GPU (3 more may wait), 20 per visitor an hour, 100 per run, 2 minutes per photo, and it stops itself after 3 hours. Only `receipt-tracker-demo.pages.dev` may read the answers (CORS).
 - **In the browser:** `web/src/demo/liveReader.ts` checks whether the PC is on (`VITE_LIVE_URL`), sends photos one at a time, and turns errors into plain messages. Samples always replay their recorded answers.
 
 One-time setup:

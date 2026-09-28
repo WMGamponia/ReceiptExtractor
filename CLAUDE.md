@@ -23,7 +23,8 @@ Keep ROADMAP.md checkboxes in sync too.
   from `eval/make_demo_receipts.py` (re-run its `read` step after a prompt change).
   Live demo (`scripts/live-demo.ps1`, spec in `docs/superpowers/specs/2026-09-28-live-demo-design.md`): `--LiveDemo:Enabled=true`
   starts `LiveDemo/LiveDemoApp.cs` instead of the app. It must never register the database, storage or static files, and
-  never log fields or images. The web side is `web/src/demo/liveReader.ts` (`VITE_LIVE_URL`); visitor-facing messages
+  never log fields or images. Uploads stay in memory only because of `WithFormOptions` on `/api/extract` (ASP.NET
+  spools anything over 64 KB to %TEMP% otherwise). The web side is `web/src/demo/liveReader.ts` (`VITE_LIVE_URL`); visitor-facing messages
   live in `LiveDemoEndpoints` and `liveReader.ts`/`demoApi.ts`.
 - Packaged exe: `publish.cmd` builds web/dist into the API's wwwroot, then a self-contained single-file
   win-x64 publish. Non-Development runs use a `data` folder next to the exe and port 5080 (`Hosting/DesktopMode.cs`).
