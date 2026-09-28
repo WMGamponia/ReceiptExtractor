@@ -58,12 +58,12 @@ Steps to take the project from scope to finished.
 - [x] Cache model outputs so the eval runs in GitHub Actions without a GPU: `eval/model_outputs/` (fields only, no OCR text), scored with `run_eval.py --offline --check`; CI fails under 85% core accuracy or on stale outputs
 - [x] GitHub Actions on every PR: API tests, web lint/test/build, eval, Docker build
 
-## 9. Deploy a demo
-- [ ] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill)
+## 9. Deploy a demo ✅
+- [x] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill): https://receipt-tracker-demo.pages.dev
   - [x] Demo build (`npm run build:demo`): made-up data in the browser; synthetic receipts (no real photos) with the real model's answers
-  - [ ] Connect the repo to Cloudflare Pages and put the link in the README
-- [ ] "Try it live" link: a separate demo copy on my PC (seed data only, never my receipts); Ollama itself is never exposed. No domain yet, so no Cloudflare Access: Tailscale Funnel or a quick tunnel, with limits in the app
-- [ ] Record a 30-second GIF of the real local flow
+  - [x] Cloudflare Pages, redeploys on every push to `main`
+- ~~"Try it live" link from my PC~~ — dropped: without a domain (so no Cloudflare Access) it would be a public, login-free door into my PC where every visitor sees everyone else's uploads. The static demo (real model answers on synthetic receipts), the GIF of the real app and `docker compose up` cover it
+- [x] Record a 30-second GIF of the real local flow: `docs/demo.gif` (synthetic receipt, made-up data only), in the README
 
 ## 10. Write the README
 - [ ] Architecture diagram
