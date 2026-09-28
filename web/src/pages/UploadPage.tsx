@@ -1,7 +1,8 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { api, isBusy, type Receipt } from '../api'
+import { api, IS_DEMO, isBusy, type Receipt } from '../api'
 import { ErrorBox, StatusBadge } from '../components'
+import { SamplePicker } from '../demo/DemoParts'
 import { formatDate, formatPeso } from '../format'
 import { useReceipt } from '../useReceipt'
 
@@ -82,6 +83,8 @@ export function UploadPage() {
           }}
         />
       </div>
+
+      {IS_DEMO && <SamplePicker onPick={(file) => upload([file])} />}
 
       <ErrorBox message={error} />
 

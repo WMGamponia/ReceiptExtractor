@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import vatCases from '../../tests/vat-cases.json'
 import {
+  csvFileName,
   formatDate,
   formatMoneyInput,
   formatPeso,
@@ -113,4 +114,10 @@ describe('vatFromTotal (12% VAT included in the total)', () => {
   it('needs a total', () => expect(vatFromTotal(amounts(null, null, null))).toBeNull())
   it('rejects junk', () => expect(vatFromTotal(amounts(NaN, null, null))).toBeNull())
   it('needs something left after exempt sales', () => expect(vatFromTotal(amounts(500, null, null, 500))).toBeNull())
+})
+
+describe('csvFileName (mirrors ReceiptCsv.FileName)', () => {
+  it('names a month by its first and last day', () =>
+    expect(csvFileName('2026-09-01', '2026-10-01')).toBe('receipts_2026-09-01_to_2026-09-30.csv'))
+  it('names a single day once', () => expect(csvFileName('2026-09-28', '2026-09-29')).toBe('receipts_2026-09-28.csv'))
 })

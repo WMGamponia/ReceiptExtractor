@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, PERIODS, type Period, type Summary } from '../api'
 import { ErrorBox } from '../components'
-import { formatPeso, shortPeriodLabel } from '../format'
+import { csvFileName, formatPeso, shortPeriodLabel } from '../format'
 
 export function DashboardPage() {
   const [period, setPeriod] = useState<Period>('Monthly')
@@ -70,7 +70,7 @@ export function DashboardPage() {
               <a
                 className="button small period-export"
                 href={api.exportCsvUrl(summary.start, summary.end)}
-                download
+                download={csvFileName(summary.start, summary.end)}
                 title={`Download the ${summary.count} confirmed receipts in ${summary.label} as a spreadsheet file`}
               >
                 Export CSV
