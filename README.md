@@ -2,9 +2,9 @@
 
 Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built (step 5).
+> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches in progress (step 6).
 >
-> _Last updated: 2026-09-27_
+> _Last updated: 2026-09-28_
 
 **Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 
@@ -23,8 +23,13 @@ Receipts are personal data: names, addresses, TINs, what you bought and where. E
 | VATable sales | ₱9,370.54 |
 | VAT-exempt sales | ₱500.00 (e.g. senior citizen / PWD purchases) |
 | Discount | ₱100.00 (all discounts on the receipt, added up) |
+| Category | Shopping — one of Food, Groceries, Transport, Fuel, Health, Utilities, Shopping, Other (suggested by the model, you can change it) |
 
 Full scope and non-goals: [SCOPE.md](SCOPE.md).
+
+### A tracker, not a tax tool
+
+This shows where your money went. It doesn't file anything with the BIR, compute your taxes or claim a receipt is valid for deductions. The VAT check only confirms that a receipt's own numbers add up (VATable sales + 12% VAT = total), to catch misreads.
 
 ## Extraction bake-off
 
@@ -136,7 +141,7 @@ npm test             # unit tests (formatting, VAT warnings)
 
 - **Spending** — totals for any day, ISO week, month, calendar quarter or year, broken down by category (confirmed receipts only)
 - **Receipts** — everything waiting for review, with status updating live while the model reads. Tick receipts (or **Select all ready to confirm**) and confirm them in one go; anything that failed a check is called out before you confirm
-- **Review** — the photo next to the extracted fields; VAT math is re-checked as you type, and future dates are flagged (the model sometimes swaps day and month). The photo can be rotated, zoomed (buttons, scroll wheel, pinch, double-click) and dragged around; **Save rotation** stores the upright image without re-running extraction, and zoom is never saved
+- **Review** — the photo next to the extracted fields; VAT math is re-checked as you type, and future dates are flagged (the model sometimes swaps day and month). The photo can be rotated, zoomed (buttons, scroll wheel, pinch, double-click) and dragged around; **Save rotation** stores the upright image without re-running extraction, and zoom is never saved. Amounts show as `10,495.00`; the **←.** / **.→** buttons next to each amount move the decimal point when the model misplaced it (`112446.00` → `1,124.46`), and if a receipt's VAT lines are missing, **Work out VAT from the total** splits it (12% VAT is included in PH totals)
 - **Add** — take a photo (opens the back camera on a phone) or drop/pick files
 
 **On your phone:** with both running, open `http://<your-PC's-IP>:5173` on the same Wi-Fi. "Take photo" opens the camera. Installing it as an app needs HTTPS, which comes with packaging (step 7).
