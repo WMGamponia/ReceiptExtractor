@@ -25,6 +25,7 @@ public sealed record ReceiptResponse(
     decimal? Discount,
     string? Category,
     IReadOnlyList<string> Flags,
+    IReadOnlyList<string> Corrections,
     double? ExtractionSeconds,
     string? Error,
     string OriginalFileName,
@@ -34,7 +35,7 @@ public sealed record ReceiptResponse(
 {
     public static ReceiptResponse From(ReceiptRecord r) => new(
         r.Id, r.DisplayName, r.Status, r.Merchant, r.Date, r.Total, r.VatAmount, r.VatableSales,
-        r.VatExemptSales, r.Discount, r.Category, r.Flags, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
+        r.VatExemptSales, r.Discount, r.Category, r.Flags, r.Corrections, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
         r.ConfirmedAtUtc, $"/api/receipts/{r.Id}/image");
 }
 
@@ -246,6 +247,7 @@ public static class ReceiptEndpoints
         var fields = new ReceiptFields(
             MerchantRules.Normalize(update.Merchant), update.Date, update.Total, update.VatAmount, update.VatableSales,
             update.VatExemptSales, update.Discount);
+        receipt.Corrections = DiffFromModel(receipt, fields, category);
         receipt.ApplyFields(fields, category);
 
         // Checks still run, but only as warnings: the user has the final say.
@@ -292,6 +294,7 @@ public static class ReceiptEndpoints
             }
 
             // Same as confirming in the review screen with nothing changed.
+            receipt.Corrections = [];
             receipt.Flags = ReceiptValidator.Validate(receipt.Fields, today); // kept as warnings
             receipt.Status = ReceiptStatus.Confirmed;
             receipt.ConfirmedAtUtc = now;
@@ -400,6 +403,39 @@ public static class ReceiptEndpoints
                 logs.CreateLogger(typeof(ReceiptEndpoints)).LogWarning(
                     "Deleted receipt {ReceiptId} but couldn't delete {Files}", receipt.Id, string.Join(", ", leftovers));
         }
+    }
+
+    /// <summary>What the user changed compared with what the model extracted.</summary>
+    private static List<string> DiffFromModel(ReceiptRecord receipt, ReceiptFields confirmed, string? category)
+    {
+        if (receipt.ModelOutput is null)
+            return [];
+
+        ExtractionResult model;
+        try { model = OllamaExtractor.ParseModelOutput(receipt.ModelOutput); }
+        catch (ExtractionException) { return ["model output was unreadable"]; }
+
+        var changes = new List<string>();
+        void Compare(string name, object? before, object? after, Func<object?, string> show)
+        {
+            if (!Equals(before, after))
+                changes.Add($"{name}: {show(before)} → {show(after)}");
+        }
+
+        static string Text(object? v) => v?.ToString() ?? "(empty)";
+        static string Money(object? v) => v is decimal amount ? amount.ToString("N2") : "(empty)";
+        static string Day(object? v) => v is DateOnly d ? d.ToString("yyyy-MM-dd") : "(empty)";
+
+        var extracted = model.Fields;
+        Compare("merchant", extracted.Merchant, confirmed.Merchant, Text);
+        Compare("date", extracted.Date, confirmed.Date, Day);
+        Compare("total", extracted.Total, confirmed.Total, Money);
+        Compare("vat_amount", extracted.VatAmount ?? 0m, confirmed.VatAmount ?? 0m, Money);
+        Compare("vatable_sales", extracted.VatableSales ?? 0m, confirmed.VatableSales ?? 0m, Money);
+        Compare("vat_exempt_sales", extracted.VatExemptSales ?? 0m, confirmed.VatExemptSales ?? 0m, Money);
+        Compare("discount", extracted.Discount ?? 0m, confirmed.Discount ?? 0m, Money);
+        Compare("category", model.Category, category, Text);
+        return changes;
     }
 
     private static ValidationProblem Invalid(string field, string message) =>
