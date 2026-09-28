@@ -62,7 +62,7 @@ Steps to take the project from scope to finished.
 - [x] Frontend on Cloudflare Pages in "demo mode" with pre-parsed sample receipts (no hosted model, no bill): https://receipt-tracker-demo.pages.dev
   - [x] Demo build (`npm run build:demo`): made-up data in the browser; synthetic receipts (no real photos) with the real model's answers
   - [x] Cloudflare Pages, redeploys on every push to `main`
-- [ ] "Try it live" link: a separate demo copy on my PC (seed data only, never my receipts); Ollama itself is never exposed. No domain yet, so no Cloudflare Access: Tailscale Funnel or a quick tunnel, with limits in the app
+- ~~"Try it live" link from my PC~~ — dropped: without a domain (so no Cloudflare Access) it would be a public, login-free door into my PC where every visitor sees everyone else's uploads. The static demo (real model answers on synthetic receipts), the GIF of the real app and `docker compose up` cover it
 - [ ] Record a 30-second GIF of the real local flow
 
 ## 10. Write the README
