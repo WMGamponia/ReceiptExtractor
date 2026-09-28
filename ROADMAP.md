@@ -48,6 +48,7 @@ Steps to take the project from scope to finished.
 - [ ] Keep it a tracker, not a tax tool
 
 ## 7. Package it
+- [x] Windows: single `ReceiptTracker.exe` (API + web app) via `publish.cmd`; data stored next to the exe
 - [ ] Single `docker compose up` starts Ollama, API, database, and web app
 - [ ] Model-pull script
 - [ ] Seed data
