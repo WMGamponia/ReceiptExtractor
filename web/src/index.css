@@ -269,3 +269,7 @@ button:disabled { opacity: 0.6; cursor: default; }
   text-transform: capitalize; font-size: 0.85rem;
 }
 .sample img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 6px; }
+.live-note {
+  padding: 0.6rem 0.8rem; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 6px; background: var(--accent-soft); font-size: 0.9rem;
+}
