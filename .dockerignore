@@ -18,5 +18,6 @@ eval
 datasets/*
 !datasets/labels
 !datasets/receipts
-tests
+tests/*
+!tests/vat-cases.json
 Claude outputs

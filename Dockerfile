@@ -7,6 +7,8 @@ WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
+# `npm run build` type-checks the tests too, and format.test.ts imports the VAT cases shared with the API and eval.
+COPY tests/vat-cases.json /tests/vat-cases.json
 RUN npm run build
 
 # 2. Publish the API with the web app in its wwwroot (what publish.cmd does for the exe).
