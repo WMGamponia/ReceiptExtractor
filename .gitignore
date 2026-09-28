@@ -16,3 +16,23 @@ obj/
 *.db-shm
 *.db-wal
 storage/
+# Data folder next to the packaged exe. Anchored: git ignores case here, so a bare "data/"
+# would also hide src/ReceiptExtractor.Api/Data/.
+/data/
+
+# Build output (publish.cmd)
+publish/
+src/ReceiptExtractor.Api/wwwroot/
+
+# Test and coverage output
+TestResults/
+coverage/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Local scratch (screenshots from Claude sessions)
+Claude outputs/
