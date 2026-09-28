@@ -33,3 +33,12 @@ Content-Type: application/json
 
 ### Retry a failed extraction
 POST {{Api}}/api/receipts/{{id}}/retry
+
+### Delete a receipt and its image files
+DELETE {{Api}}/api/receipts/{{id}}
+
+### Delete several receipts
+POST {{Api}}/api/receipts/delete
+Content-Type: application/json
+
+{ "ids": ["{{id}}"] }

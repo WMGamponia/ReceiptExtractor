@@ -29,6 +29,11 @@ public sealed class ExtractionWorker(
             {
                 break;
             }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Deleted by the user while it was queued; nothing left to save.
+                log.LogInformation("Receipt {ReceiptId} was deleted during extraction", id);
+            }
             catch (Exception ex)
             {
                 log.LogError(ex, "Extraction crashed for receipt {ReceiptId}", id);
