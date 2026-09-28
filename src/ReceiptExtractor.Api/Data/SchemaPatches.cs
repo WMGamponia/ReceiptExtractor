@@ -9,11 +9,12 @@ namespace ReceiptExtractor.Api.Data;
 /// </summary>
 public static class SchemaPatches
 {
-    // SQLite stores decimal as TEXT (see ReceiptRecord).
+    // SQLite stores decimal as TEXT (see ReceiptRecord); lists of strings are stored as JSON text.
     private static readonly (string Column, string Type)[] AddedColumns =
     [
         (nameof(ReceiptRecord.VatExemptSales), "TEXT NULL"),
         (nameof(ReceiptRecord.Discount), "TEXT NULL"),
+        (nameof(ReceiptRecord.LockedFields), "TEXT NOT NULL DEFAULT '[]'"),
     ];
 
     public static void Apply(AppDbContext db)

@@ -18,7 +18,8 @@ public sealed record ExtractionResult(ReceiptFields Fields, string? Category, st
 
 public interface IReceiptExtractor
 {
-    Task<ExtractionResult> ExtractAsync(string imagePath, CancellationToken ct);
+    /// <param name="hints">Values the user checked; the model is told they're correct (see <see cref="UserHints"/>).</param>
+    Task<ExtractionResult> ExtractAsync(string imagePath, IReadOnlyList<FieldHint> hints, CancellationToken ct);
 }
 
 public sealed class ExtractionException(string message) : Exception(message);
@@ -78,7 +79,7 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
     };
 
-    public async Task<ExtractionResult> ExtractAsync(string imagePath, CancellationToken ct)
+    public async Task<ExtractionResult> ExtractAsync(string imagePath, IReadOnlyList<FieldHint> hints, CancellationToken ct)
     {
         var opts = options.Value;
         var image = await File.ReadAllBytesAsync(imagePath, ct);
@@ -93,7 +94,7 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             options = new { temperature = 0, num_ctx = opts.ContextLength }, // same input -> same output
             messages = new[]
             {
-                new { role = "user", content = Prompt, images = new[] { Convert.ToBase64String(image) } },
+                new { role = "user", content = Prompt + UserHints.Prompt(hints), images = new[] { Convert.ToBase64String(image) } },
             },
         };
 

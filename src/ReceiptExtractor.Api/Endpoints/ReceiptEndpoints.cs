@@ -25,6 +25,7 @@ public sealed record ReceiptResponse(
     decimal? Discount,
     string? Category,
     IReadOnlyList<string> Flags,
+    IReadOnlyList<string> Corrections,
     double? ExtractionSeconds,
     string? Error,
     string OriginalFileName,
@@ -34,7 +35,7 @@ public sealed record ReceiptResponse(
 {
     public static ReceiptResponse From(ReceiptRecord r) => new(
         r.Id, r.DisplayName, r.Status, r.Merchant, r.Date, r.Total, r.VatAmount, r.VatableSales,
-        r.VatExemptSales, r.Discount, r.Category, r.Flags, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
+        r.VatExemptSales, r.Discount, r.Category, r.Flags, r.Corrections, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
         r.ConfirmedAtUtc, $"/api/receipts/{r.Id}/image");
 }
 
@@ -48,6 +49,12 @@ public sealed record ReceiptUpdate(
     decimal? VatExemptSales,
     decimal? Discount,
     string? Category);
+
+/// <summary>
+/// "Re-extract with my changes": the fields named in <see cref="Locked"/> (model JSON names, e.g. "total")
+/// are taken from <see cref="Fields"/> as correct; everything else is read again by the model.
+/// </summary>
+public sealed record ReextractRequest(ReceiptUpdate? Fields, IReadOnlyList<string>? Locked);
 
 /// <summary>Bulk confirm: accept the extracted fields of several receipts as they are.</summary>
 public sealed record BulkConfirmRequest(IReadOnlyList<Guid>? Ids);
@@ -92,6 +99,8 @@ public static class ReceiptEndpoints
         receipts.MapPost("/confirm", ConfirmMany)
             .WithSummary("Confirm several receipts at once, keeping their extracted fields. Ones that can't be confirmed are skipped with a reason.");
         receipts.MapPost("/{id:guid}/retry", Retry).WithSummary("Run extraction again (e.g. after it failed).");
+        receipts.MapPost("/{id:guid}/reextract", Reextract)
+            .WithSummary("Keep the fields the user corrected, tell the model they're correct, and re-read the rest.");
         receipts.MapDelete("/{id:guid}", Delete)
             .WithSummary("Delete a receipt and its image files (including the pre-rotation backup). Not allowed while the model is reading it.");
         receipts.MapPost("/delete", DeleteMany)
@@ -246,6 +255,7 @@ public static class ReceiptEndpoints
         var fields = new ReceiptFields(
             MerchantRules.Normalize(update.Merchant), update.Date, update.Total, update.VatAmount, update.VatableSales,
             update.VatExemptSales, update.Discount);
+        receipt.Corrections = DiffFromModel(receipt, fields, category);
         receipt.ApplyFields(fields, category);
 
         // Checks still run, but only as warnings: the user has the final say.
@@ -292,6 +302,7 @@ public static class ReceiptEndpoints
             }
 
             // Same as confirming in the review screen with nothing changed.
+            receipt.Corrections = [];
             receipt.Flags = ReceiptValidator.Validate(receipt.Fields, today); // kept as warnings
             receipt.Status = ReceiptStatus.Confirmed;
             receipt.ConfirmedAtUtc = now;
@@ -400,6 +411,83 @@ public static class ReceiptEndpoints
                 logs.CreateLogger(typeof(ReceiptEndpoints)).LogWarning(
                     "Deleted receipt {ReceiptId} but couldn't delete {Files}", receipt.Id, string.Join(", ", leftovers));
         }
+    }
+
+    private static async Task<Results<Accepted<ReceiptResponse>, NotFound, Conflict<string>, ValidationProblem>> Reextract(
+        Guid id, ReextractRequest request, AppDbContext db, ExtractionQueue queue, CancellationToken ct)
+    {
+        var receipt = await db.Receipts.FindAsync([id], ct);
+        if (receipt is null)
+            return TypedResults.NotFound();
+        if (receipt.Status is ReceiptStatus.Queued or ReceiptStatus.Processing)
+            return TypedResults.Conflict("Extraction is already running for this receipt.");
+
+        var locked = (request.Locked ?? []).Distinct().ToList();
+        var update = request.Fields;
+        var errors = new Dictionary<string, string[]>();
+        if (update is null || locked.Count == 0)
+            errors["locked"] = ["Change at least one field to re-extract with."];
+        else if (locked.FirstOrDefault(f => !UserHints.IsKnown(f)) is { } unknown)
+            errors["locked"] = [$"Unknown field '{unknown}'. Use: {string.Join(", ", UserHints.Fields)}."];
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+
+        // Same rules as confirming, but only for the fields being locked.
+        var category = Categories.Normalize(update!.Category);
+        if (locked.Contains(UserHints.Total) && update.Total is not > 0) errors["total"] = ["Total must be more than zero."];
+        if (locked.Contains(UserHints.Category) && category is null)
+            errors["category"] = [$"Category must be one of: {string.Join(", ", Categories.All)}."];
+        if (locked.Contains(UserHints.VatExemptSales) && update.VatExemptSales < 0) errors["vatExemptSales"] = ["VAT-exempt sales can't be negative."];
+        if (locked.Contains(UserHints.Discount) && update.Discount < 0) errors["discount"] = ["Enter the discount as a positive amount."];
+        if (errors.Count > 0)
+            return TypedResults.ValidationProblem(errors);
+
+        // Store the user's values for the locked fields now; the worker keeps them and re-reads the rest.
+        var user = new ReceiptFields(MerchantRules.Normalize(update.Merchant), update.Date, update.Total,
+            update.VatAmount, update.VatableSales, update.VatExemptSales, update.Discount);
+        var set = locked.ToHashSet();
+        receipt.ApplyFields(UserHints.Keep(receipt.Fields, user, set), set.Contains(UserHints.Category) ? category : receipt.Category);
+        receipt.LockedFields = locked;
+        receipt.Status = ReceiptStatus.Queued;
+        receipt.ConfirmedAtUtc = null; // needs confirming again once the model is done
+        receipt.Error = null;
+        await db.SaveChangesAsync(ct);
+        await queue.EnqueueAsync(id, ct);
+
+        return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt));
+    }
+
+    /// <summary>What the user changed compared with what the model extracted.</summary>
+    private static List<string> DiffFromModel(ReceiptRecord receipt, ReceiptFields confirmed, string? category)
+    {
+        if (receipt.ModelOutput is null)
+            return [];
+
+        ExtractionResult model;
+        try { model = OllamaExtractor.ParseModelOutput(receipt.ModelOutput); }
+        catch (ExtractionException) { return ["model output was unreadable"]; }
+
+        var changes = new List<string>();
+        void Compare(string name, object? before, object? after, Func<object?, string> show)
+        {
+            if (!Equals(before, after))
+                changes.Add($"{name}: {show(before)} → {show(after)}");
+        }
+
+        static string Text(object? v) => v?.ToString() ?? "(empty)";
+        static string Money(object? v) => v is decimal amount ? amount.ToString("N2") : "(empty)";
+        static string Day(object? v) => v is DateOnly d ? d.ToString("yyyy-MM-dd") : "(empty)";
+
+        var extracted = model.Fields;
+        Compare("merchant", extracted.Merchant, confirmed.Merchant, Text);
+        Compare("date", extracted.Date, confirmed.Date, Day);
+        Compare("total", extracted.Total, confirmed.Total, Money);
+        Compare("vat_amount", extracted.VatAmount ?? 0m, confirmed.VatAmount ?? 0m, Money);
+        Compare("vatable_sales", extracted.VatableSales ?? 0m, confirmed.VatableSales ?? 0m, Money);
+        Compare("vat_exempt_sales", extracted.VatExemptSales ?? 0m, confirmed.VatExemptSales ?? 0m, Money);
+        Compare("discount", extracted.Discount ?? 0m, confirmed.Discount ?? 0m, Money);
+        Compare("category", model.Category, category, Text);
+        return changes;
     }
 
     private static ValidationProblem Invalid(string field, string message) =>

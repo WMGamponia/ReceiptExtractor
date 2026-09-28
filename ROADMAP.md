@@ -31,7 +31,8 @@ Steps to take the project from scope to finished.
 - [ ] TypeScript PWA with camera capture
 - [ ] Review-and-correct screen
 - [ ] Dashboard
-- [ ] Log every user correction (free eval data)
+- [x] Re-extract with corrections: fields the user fixed are locked and given to the model as known-correct; it re-reads the rest
+- [x] Log every user correction (free eval data) — stored per receipt as "field: model → you"
 
 ## 6. Add PH-specific touches
 - [ ] PHP formatting
