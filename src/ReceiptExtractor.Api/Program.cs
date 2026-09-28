@@ -6,8 +6,16 @@ using ReceiptExtractor.Api.Data;
 using ReceiptExtractor.Api.Endpoints;
 using ReceiptExtractor.Api.Extraction;
 using ReceiptExtractor.Api.Hosting;
+using ReceiptExtractor.Api.LiveDemo;
 using ReceiptExtractor.Api.Seeding;
 using ReceiptExtractor.Api.Summaries;
+
+// scripts/live-demo.ps1: a separate, storage-free app that only reads photos for the demo site (LiveDemo/).
+if (LiveDemoApp.IsRequested(args))
+{
+    LiveDemoApp.Build(args).Run();
+    return;
+}
 
 var isDevelopment = string.Equals(
     Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
