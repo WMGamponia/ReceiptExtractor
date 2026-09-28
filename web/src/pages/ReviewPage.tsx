@@ -4,7 +4,16 @@ import { api, ApiError, CATEGORIES, isBusy, type LockableField, type Receipt, ty
 import { ImageViewer } from '../ImageViewer'
 import { renderRotated, type Rotation } from '../imageTools'
 import { ErrorBox, Flags, StatusBadge } from '../components'
-import { parseMoney, todayIso, vatComplement, vatWarnings, type Amounts } from '../format'
+import {
+  formatMoneyInput,
+  parseMoney,
+  shiftDecimal,
+  todayIso,
+  vatComplement,
+  vatFromTotal,
+  vatWarnings,
+  type Amounts,
+} from '../format'
 import { useReceipt } from '../useReceipt'
 
 /** Where "back to the list" goes: the list tab the user came from (see ReceiptsPage), else the default tab. */
@@ -160,7 +169,7 @@ interface FormState {
   category: string
 }
 
-const money = (n: number | null) => (n == null ? '' : n.toFixed(2))
+const money = formatMoneyInput
 
 type VatField = 'vatAmount' | 'vatableSales'
 const otherVatField = (f: VatField): VatField => (f === 'vatAmount' ? 'vatableSales' : 'vatAmount')
@@ -259,6 +268,14 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
 
   const amounts = amountsOf(form)
   const { total, vat, vatable, exempt, discount } = amounts
+  // No VAT lines read (faded receipt, or the model missed them): offer to split the VAT-inclusive total.
+  const splitFromTotal = !vat && !vatable ? vatFromTotal(amounts) : null
+
+  function fillVatFromTotal() {
+    if (!splitFromTotal) return
+    setForm((f) => ({ ...f, vatAmount: money(splitFromTotal.vat), vatableSales: money(splitFromTotal.vatable) }))
+    setAutoFilled(null) // the user asked for these, so they count as their values
+  }
   const liveWarnings = vatWarnings(amounts)
   const futureDate = form.date !== '' && form.date > todayIso()
 
@@ -343,24 +360,34 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
       </Field>
 
       <Field label="Total (₱)" required error={fieldError('total')}>
-        <input inputMode="decimal" value={form.total} onChange={(e) => setAmount('total', e.target.value)} required />
+        <MoneyInput value={form.total} onChange={(v) => setAmount('total', v)} required />
       </Field>
 
       <div className="field-pair">
         <Field label="VAT (₱)" hint={autoFilled === 'vatAmount' ? 'auto-filled' : '0 if non-VAT'}>
-          <input inputMode="decimal" value={form.vatAmount} onChange={(e) => setVatField('vatAmount', e.target.value)} />
+          <MoneyInput value={form.vatAmount} onChange={(v) => setVatField('vatAmount', v)} />
         </Field>
         <Field label="VATable sales (₱)" hint={autoFilled === 'vatableSales' ? 'auto-filled' : undefined}>
-          <input inputMode="decimal" value={form.vatableSales} onChange={(e) => setVatField('vatableSales', e.target.value)} />
+          <MoneyInput value={form.vatableSales} onChange={(v) => setVatField('vatableSales', v)} />
         </Field>
       </div>
+      {splitFromTotal && (
+        <p className="field-action">
+          <button type="button" className="link" onClick={fillVatFromTotal}>
+            Work out VAT from the total
+          </button>
+          <span className="muted">
+            12% included: {formatMoneyInput(splitFromTotal.vatable)} + {formatMoneyInput(splitFromTotal.vat)} VAT
+          </span>
+        </p>
+      )}
 
       <div className="field-pair">
         <Field label="VAT-exempt sales (₱)" hint="e.g. SC / PWD" error={fieldError('vatExemptSales')}>
-          <input inputMode="decimal" value={form.vatExemptSales} onChange={(e) => setAmount('vatExemptSales', e.target.value)} />
+          <MoneyInput value={form.vatExemptSales} onChange={(v) => setAmount('vatExemptSales', v)} />
         </Field>
         <Field label="Discount (₱)" hint="all, added up" error={fieldError('discount')}>
-          <input inputMode="decimal" value={form.discount} onChange={(e) => setAmount('discount', e.target.value)} />
+          <MoneyInput value={form.discount} onChange={(v) => setAmount('discount', v)} />
         </Field>
       </div>
 
@@ -405,6 +432,38 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
         </p>
       )}
     </form>
+  )
+}
+
+/** Money input with buttons to move the decimal point, for amounts read as 112446 instead of 1124.46. */
+function MoneyInput(props: { value: string; onChange: (value: string) => void; required?: boolean }) {
+  const amount = parseMoney(props.value)
+  const canShift = amount != null && !Number.isNaN(amount) && amount !== 0
+  const shift = (direction: 'left' | 'right') => props.onChange(shiftDecimal(props.value, direction))
+  return (
+    <span className="money-input">
+      <input inputMode="decimal" value={props.value} onChange={(e) => props.onChange(e.target.value)} required={props.required} />
+      <button
+        type="button"
+        className="shift"
+        onClick={() => shift('left')}
+        disabled={!canShift}
+        title="Move the decimal point left (÷10)"
+        aria-label="Move the decimal point left"
+      >
+        ←.
+      </button>
+      <button
+        type="button"
+        className="shift"
+        onClick={() => shift('right')}
+        disabled={!canShift}
+        title="Move the decimal point right (×10)"
+        aria-label="Move the decimal point right"
+      >
+        .→
+      </button>
+    </span>
   )
 }
 

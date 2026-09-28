@@ -191,6 +191,11 @@ button:disabled { opacity: 0.6; cursor: default; }
 .field-invalid input, .field-invalid select { border-color: var(--error); }
 .field-pair { display: grid; gap: 0.9rem; grid-template-columns: 1fr 1fr; }
 .field-pair .field { align-content: end; } /* inputs line up even if one label wraps */
+.money-input { display: flex; gap: 0.25rem; }
+.money-input input { flex: 1; min-width: 0; }
+.money-input .shift { padding: 0.3rem 0.45rem; font-size: 0.85rem; font-variant-numeric: tabular-nums; flex: none; }
+.field-action { margin: -0.4rem 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; font-size: 0.85rem; }
+.field-action .link { padding: 0; }
 
 /* Dashboard */
 .period-nav { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
