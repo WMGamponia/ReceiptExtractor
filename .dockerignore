@@ -1,0 +1,20 @@
+# Only src/ and web/ go into the image. Keep build output, local data and eval files out
+# (eval/preds holds receipt OCR text, including TINs).
+.git
+.vs
+.venv
+**/bin
+**/obj
+**/node_modules
+web/dist
+src/ReceiptExtractor.Api/wwwroot
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/storage
+data
+publish
+eval
+datasets
+tests
+Claude outputs
