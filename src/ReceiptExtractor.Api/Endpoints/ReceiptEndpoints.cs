@@ -475,7 +475,7 @@ public static class ReceiptEndpoints
         }
 
         static string Text(object? v) => v?.ToString() ?? "(empty)";
-        static string Money(object? v) => v is decimal amount ? amount.ToString("N2") : "(empty)";
+        static string Money(object? v) => v is decimal amount ? Peso.Format(amount) : "(empty)";
         static string Day(object? v) => v is DateOnly d ? d.ToString("yyyy-MM-dd") : "(empty)";
 
         var extracted = model.Fields;

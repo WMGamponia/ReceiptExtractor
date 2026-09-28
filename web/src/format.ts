@@ -7,6 +7,26 @@ export function formatPeso(value: number | null | undefined): string {
   return value == null ? '—' : peso.format(value)
 }
 
+const moneyInput = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const shiftedInput = new Intl.NumberFormat('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 6 })
+
+/** Money for an input box: 10495 -> "10,495.00"; null -> "" (parseMoney reads it back) */
+export function formatMoneyInput(value: number | null | undefined): string {
+  return value == null ? '' : moneyInput.format(value)
+}
+
+/**
+ * Moves the decimal point one place, for amounts the model read with the point in the wrong spot:
+ * "112446.00" -left-> "11,244.60" -left-> "1,124.46". Digits past the centavos are kept (not rounded) so
+ * shifting back and forth never loses any. Empty or unparseable text is returned as-is.
+ */
+export function shiftDecimal(text: string, direction: 'left' | 'right'): string {
+  const value = parseMoney(text)
+  if (value == null || Number.isNaN(value)) return text
+  const shifted = direction === 'left' ? value / 10 : value * 10
+  return shiftedInput.format(Number(shifted.toFixed(6))) // toFixed: drop floating-point noise
+}
+
 /** "2025-12-20" -> "Dec 20, 2025" (parsed as a calendar date, so no timezone shifts) */
 export function formatDate(isoDate: string | null | undefined): string {
   if (!isoDate) return '—'
@@ -117,4 +137,17 @@ export function vatComplement(a: Amounts, known: 'vat' | 'vatable'): number | nu
     if (!best || error < best.error) best = { other, error }
   }
   return best?.other ?? null
+}
+
+/**
+ * PH VAT is included in the total: VATable sales × 1.12 = total − VAT-exempt sales. Splits the total that way
+ * when the receipt's VAT lines are missing or unreadable. VAT is whatever is left after rounding VATable sales,
+ * so the two always add up exactly. Null when there's no usable total.
+ */
+export function vatFromTotal(a: Amounts): { vat: number; vatable: number } | null {
+  if (a.total == null || Number.isNaN(a.total) || Number.isNaN(a.exempt ?? 0)) return null
+  const base = a.total - num(a.exempt)
+  if (base <= 0) return null
+  const vatable = round2(base / (1 + VAT_RATE))
+  return { vat: round2(base - vatable), vatable }
 }

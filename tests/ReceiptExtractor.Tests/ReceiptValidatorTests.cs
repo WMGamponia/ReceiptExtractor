@@ -1,3 +1,4 @@
+using System.Globalization;
 using ReceiptExtractor.Api.Validation;
 
 namespace ReceiptExtractor.Tests;
@@ -108,6 +109,49 @@ public class ReceiptValidatorTests
 
         var flags = ReceiptValidator.Validate(fields, Today);
 
-        Assert.Contains(flags, f => f.Contains("VAT-exempt sales") && f.Contains("420.00 after the 80.00 discount"));
+        Assert.Contains(flags, f => f.Contains("VAT-exempt sales") && f.Contains("₱420.00 after the ₱80.00 discount"));
     }
+
+    [Fact]
+    public void Amounts_in_flags_are_pesos_whatever_the_PC_region()
+    {
+        var before = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = new CultureInfo("de-DE"); // would print 10.495,00
+        try
+        {
+            var fields = new ReceiptFields("DataBlitz", new DateOnly(2025, 12, 20), 10495m, 1124m, 9370m);
+
+            var flags = ReceiptValidator.Validate(fields, Today);
+
+            Assert.Contains(flags, f => f.Contains("= ₱10,494.00, but total is ₱10,495.00."));
+            Assert.Contains(flags, f => f.Contains("VAT ₱1,124.00 isn't 12% of VATable sales (expected ₱1,124.40)"));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = before;
+        }
+    }
+}
+
+public class PesoTests
+{
+    [Theory]
+    [InlineData(10495, "₱10,495.00")]
+    [InlineData(0.5, "₱0.50")]
+    [InlineData(-20, "-₱20.00")]
+    public void Formats_pesos(decimal amount, string expected) => Assert.Equal(expected, Peso.Format(amount));
+}
+
+public class CategoriesTests
+{
+    [Theory]
+    [InlineData("fuel", "Fuel")]
+    [InlineData(" SHOPPING ", "Shopping")]
+    [InlineData("Groceries", "Groceries")]
+    [InlineData("Gadgets", null)]
+    public void Normalizes_categories(string input, string? expected) => Assert.Equal(expected, Categories.Normalize(input));
+
+    [Fact]
+    public void Keeps_the_original_six_so_existing_receipts_stay_valid() =>
+        Assert.Subset(Categories.All.ToHashSet(), new HashSet<string> { "Food", "Transport", "Groceries", "Health", "Utilities", "Other" });
 }

@@ -37,15 +37,15 @@ Steps to take the project from scope to finished.
 - [x] Dashboard (daily → yearly, per-category totals, recent-period chart) + `GET /api/summary`
 - [x] Re-extract with corrections: fields the user fixed are locked and given to the model as known-correct; it re-reads the rest
 - [x] Log every user correction (free eval data) — stored per receipt as "field: model → you"
-- [ ] First end-to-end run on my machine (laptop + phone)
+- [x] First end-to-end run on my machine (laptop + phone)
 
 ## 6. Add PH-specific touches
-- [ ] PHP formatting
-- [ ] VAT-inclusive math (12% baked into the total)
+- [x] PHP formatting: ₱10,495.00 everywhere (also in backend messages, whatever the PC's region); amounts in the form with commas; buttons to move a misplaced decimal point
+- [x] VAT-inclusive math (12% baked into the total): "Work out VAT from the total" splits a total into VATable sales + VAT
 - [x] VAT-exempt sales and discounts (senior citizen / PWD): extracted, editable, included in the VAT check
-- [ ] Sensible local categories
+- [x] Sensible local categories: Food, Groceries, Transport, Fuel, Health, Utilities, Shopping, Other, with PH examples in the prompt (Mercury Drug → Health, Petron → Fuel, Lazada → Shopping)
 - [ ] CSV export for freelancers tracking expenses
-- [ ] Keep it a tracker, not a tax tool
+- [x] Keep it a tracker, not a tax tool (README: "A tracker, not a tax tool")
 
 ## 7. Package it
 - [x] Windows: single `ReceiptTracker.exe` (API + web app) via `publish.cmd`; data stored next to the exe

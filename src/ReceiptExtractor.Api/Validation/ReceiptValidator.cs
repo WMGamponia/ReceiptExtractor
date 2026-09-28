@@ -50,13 +50,13 @@ public static class ReceiptValidator
         if (!adds)
         {
             var parts = exempt != 0 ? "VATable sales + VAT + VAT-exempt sales" : "VATable sales + VAT";
-            var less = discount != 0 ? $" ({breakdown - discount:N2} after the {discount:N2} discount)" : "";
-            flags.Add($"{parts} = {breakdown:N2}{less}, but total is {total:N2}.");
+            var less = discount != 0 ? $" ({Peso.Format(breakdown - discount)} after the {Peso.Format(discount)} discount)" : "";
+            flags.Add($"{parts} = {Peso.Format(breakdown)}{less}, but total is {Peso.Format(total)}.");
         }
 
         var expectedVat = Math.Round(vatable * VatRate, 2, MidpointRounding.AwayFromZero);
         if (Math.Abs(vat - expectedVat) > Tolerance)
-            flags.Add($"VAT {vat:N2} isn't 12% of VATable sales (expected {expectedVat:N2}). Could be a misread.");
+            flags.Add($"VAT {Peso.Format(vat)} isn't 12% of VATable sales (expected {Peso.Format(expectedVat)}). Could be a misread.");
 
         return flags;
     }
