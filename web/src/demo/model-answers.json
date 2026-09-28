@@ -1,0 +1,62 @@
+{
+  "kusina-ni-aling-rosa": {
+    "merchant": "KUSINA NI ALING ROSA",
+    "date": "2026-09-14",
+    "total": 415.0,
+    "vatAmount": 44.46,
+    "vatableSales": 370.54,
+    "vatExemptSales": 0.0,
+    "discount": 0.0,
+    "category": "Food",
+    "flags": [],
+    "extractionSeconds": 2.06
+  },
+  "bayanihan-supermarket": {
+    "merchant": "BAYANIHAN SUPERMARKET INC.",
+    "date": "2026-08-29",
+    "total": 2468.75,
+    "vatAmount": 264.51,
+    "vatableSales": 2204.24,
+    "vatExemptSales": 0.0,
+    "discount": 0.0,
+    "category": "Groceries",
+    "flags": [],
+    "extractionSeconds": 2.24
+  },
+  "botika-san-roque": {
+    "merchant": "BOTIKA SAN ROQUE",
+    "date": "2026-09-08",
+    "total": 800.0,
+    "vatAmount": 0.0,
+    "vatableSales": 0.0,
+    "vatExemptSales": 1000.0,
+    "discount": 200.0,
+    "category": "Health",
+    "flags": [],
+    "extractionSeconds": 3.6
+  },
+  "petrolina-gas-station": {
+    "merchant": "PETROLINA GAS STATION",
+    "date": "2026-09-21",
+    "total": 1776.98,
+    "vatAmount": 190.39,
+    "vatableSales": 1586.59,
+    "vatExemptSales": 0.0,
+    "discount": 0.0,
+    "category": "Fuel",
+    "flags": [],
+    "extractionSeconds": 1.91
+  },
+  "tindahan-ni-mang-ben": {
+    "merchant": "TINDAHAN NI MANG BEN",
+    "date": "2026-09-25",
+    "total": 146.0,
+    "vatAmount": 0.0,
+    "vatableSales": 0.0,
+    "vatExemptSales": 0.0,
+    "discount": 0.0,
+    "category": "Food",
+    "flags": [],
+    "extractionSeconds": 1.7
+  }
+}
