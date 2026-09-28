@@ -3,6 +3,7 @@ namespace ReceiptExtractor.Api.Validation;
 /// <summary>
 /// Sanity checks on extracted fields. Any flag sends the receipt to review.
 /// These are deterministic rules in code, not prompt instructions: the model can't ignore them.
+/// Mirrored in web/src/format.ts (vatWarnings) — keep them in sync.
 /// </summary>
 public static class ReceiptValidator
 {

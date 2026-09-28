@@ -2,11 +2,11 @@
 
 Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4). Frontend not merged yet.
+> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built (step 5).
 >
 > _Last updated: 2026-09-27_
 
-**Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · Python for the extraction eval · TypeScript PWA (planned)
+**Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 
 ## Why local-first
 
@@ -108,6 +108,24 @@ dotnet test                                       # unit tests
 
 **How a receipt flows:** upload → saved to disk + DB row `Queued` → background worker sends the image to Ollama with a JSON schema → model output parsed and cleaned (e.g. "LAZADA Edifier" → "LAZADA") → checks run (VAT breakdown: VATable + VAT + VAT-exempt = total, or = total + discount for senior citizen / PWD discounts; VAT = 12% of VATable sales; date; total) → `Extracted`, or `NeedsReview` with reasons → user confirms/corrects → `Confirmed`. If a correction should change other fields too (e.g. the right VAT line), **Re-extract** keeps the corrected fields, tells the model they're correct, and re-reads the rest. The model's raw output is kept, so user corrections can later become new eval data.
 
+## Running the web app
+
+Requirements: Node.js 20+, and the API running (above).
+
+```bash
+cd web
+npm install
+npm run dev          # http://localhost:5173 — /api calls are proxied to the API
+npm test             # unit tests (formatting, VAT warnings)
+```
+
+- **Spending** — totals for any day, ISO week, month, calendar quarter or year, broken down by category (confirmed receipts only)
+- **Receipts** — everything waiting for review, with status updating live while the model reads. Tick receipts (or **Select all ready to confirm**) and confirm them in one go; anything that failed a check is called out before you confirm
+- **Review** — the photo next to the extracted fields; VAT math is re-checked as you type, and future dates are flagged (the model sometimes swaps day and month). The photo can be rotated, zoomed (buttons, scroll wheel, pinch, double-click) and dragged around; **Save rotation** stores the upright image without re-running extraction, and zoom is never saved
+- **Add** — take a photo (opens the back camera on a phone) or drop/pick files
+
+**On your phone:** with both running, open `http://<your-PC's-IP>:5173` on the same Wi-Fi. "Take photo" opens the camera. Installing it as an app needs HTTPS, which comes with packaging (step 7).
+
 ## Project structure
 
 ```
@@ -119,6 +137,10 @@ src/ReceiptExtractor.Api/
   Data/          EF Core entity + DbContext (SQLite)
   Summaries/     period math (ISO weeks, calendar quarters) + GET /api/summary
 tests/ReceiptExtractor.Tests/   xUnit tests
+web/
+  src/pages/     Dashboard, Receipts, Review, Upload
+  src/api.ts     typed API client
+  src/format.ts  peso/date formatting, VAT warnings (mirrors ReceiptValidator.cs)
 datasets/
   labels/        receipt images
   receipts/      hand-labeled ground truth (one JSON per image)
