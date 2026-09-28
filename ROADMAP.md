@@ -39,12 +39,12 @@ Steps to take the project from scope to finished.
 - [x] Log every user correction (free eval data) — stored per receipt as "field: model → you"
 - [x] First end-to-end run on my machine (laptop + phone)
 
-## 6. Add PH-specific touches
+## 6. Add PH-specific touches ✅
 - [x] PHP formatting: ₱10,495.00 everywhere (also in backend messages, whatever the PC's region); amounts in the form with commas; buttons to move a misplaced decimal point
 - [x] VAT-inclusive math (12% baked into the total): "Work out VAT from the total" splits a total into VATable sales + VAT
 - [x] VAT-exempt sales and discounts (senior citizen / PWD): extracted, editable, included in the VAT check
 - [x] Sensible local categories: Food, Groceries, Transport, Fuel, Health, Utilities, Shopping, Other, with PH examples in the prompt (Mercury Drug → Health, Petron → Fuel, Lazada → Shopping)
-- [ ] CSV export for freelancers tracking expenses
+- [x] CSV export for freelancers tracking expenses: **Export CSV** on the Spending page for the period shown (`GET /api/receipts/export.csv`), confirmed receipts, opens cleanly in Excel
 - [x] Keep it a tracker, not a tax tool (README: "A tracker, not a tax tool")
 
 ## 7. Package it
