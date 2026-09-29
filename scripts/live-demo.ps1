@@ -16,10 +16,21 @@ $root = Resolve-Path (Join-Path $PSScriptRoot '..')
 $project = Join-Path $root 'src\ReceiptExtractor.Api'
 $model = (Get-Content (Join-Path $project 'appsettings.json') -Raw | ConvertFrom-Json).Ollama.Model
 
-# 1. Ollama is running and has the model.
-try {
-    $tags = Invoke-RestMethod 'http://localhost:11434/api/tags' -TimeoutSec 5
-} catch {
+# 1. Ollama is running (started if it isn't) and has the model.
+function Get-OllamaModels {
+    try { Invoke-RestMethod 'http://localhost:11434/api/tags' -TimeoutSec 5 } catch { $null }
+}
+$tags = Get-OllamaModels
+$ollamaApp = Join-Path $env:LOCALAPPDATA 'Programs\Ollama\ollama app.exe'
+if (-not $tags -and (Test-Path $ollamaApp)) {
+    Write-Host 'Starting Ollama...'
+    Start-Process $ollamaApp
+    for ($i = 0; $i -lt 30 -and -not $tags; $i++) {
+        Start-Sleep -Seconds 1
+        $tags = Get-OllamaModels
+    }
+}
+if (-not $tags) {
     Write-Host "Can't reach Ollama on this PC. Start the Ollama app, then run this again."
     exit 1
 }
@@ -28,14 +39,32 @@ if (-not ($tags.models.name -contains $model)) {
     exit 1
 }
 
-# 2. Tailscale is installed and signed in.
-if (-not (Get-Command tailscale -ErrorAction SilentlyContinue)) {
+# 2. Tailscale is installed and connected (the Tailscale app is started if it isn't; signing in is up to you).
+$tailscaleExe = (Get-Command tailscale -ErrorAction SilentlyContinue).Source
+$installed = Join-Path $env:ProgramFiles 'Tailscale\tailscale.exe' # not always on PATH
+if (-not $tailscaleExe -and (Test-Path $installed)) {
+    $tailscaleExe = $installed
+}
+if (-not $tailscaleExe) {
     Write-Host "Tailscale isn't installed. Get it from https://tailscale.com/download, sign in, then run this again."
     exit 1
 }
-$tailscale = & tailscale status --json | ConvertFrom-Json
+function Get-TailscaleStatus {
+    # Fails (no JSON) while the Tailscale service is still starting.
+    try { & $tailscaleExe status --json 2>$null | ConvertFrom-Json } catch { $null }
+}
+$tailscale = Get-TailscaleStatus
+$tailscaleApp = Join-Path (Split-Path $tailscaleExe) 'tailscale-ipn.exe'
+if ($tailscale.BackendState -ne 'Running' -and (Test-Path $tailscaleApp)) {
+    Write-Host 'Starting Tailscale...'
+    Start-Process $tailscaleApp
+    for ($i = 0; $i -lt 20 -and $tailscale.BackendState -ne 'Running'; $i++) {
+        Start-Sleep -Seconds 1
+        $tailscale = Get-TailscaleStatus
+    }
+}
 if ($tailscale.BackendState -ne 'Running') {
-    Write-Host "Tailscale isn't signed in. Open Tailscale and sign in, then run this again."
+    Write-Host "Tailscale isn't connected. Open Tailscale, sign in or connect, then run this again."
     exit 1
 }
 $address = 'https://' + $tailscale.Self.DNSName.TrimEnd('.')
@@ -45,7 +74,7 @@ dotnet build $project -c Release --nologo -v q
 if ($LASTEXITCODE -ne 0) { exit 1 }
 
 # 4. Open the tunnel. The first time, this prints a link to allow Funnel on your tailnet.
-& tailscale funnel --bg $Port
+& $tailscaleExe funnel --bg $Port
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Funnel didn't start. If it printed a link, open it to allow Funnel, then run this again."
     exit 1
@@ -60,6 +89,6 @@ try {
     if ($AllowedOrigin) { $settings += "--LiveDemo:AllowedOrigin=$AllowedOrigin" }
     dotnet run --project $project -c Release --no-build --no-launch-profile -- @settings
 } finally {
-    & tailscale funnel --https=443 off | Out-Null
+    & $tailscaleExe funnel --https=443 off | Out-Null
     Write-Host "Live demo stopped; Funnel is off."
 }
