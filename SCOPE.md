@@ -36,6 +36,7 @@ Upload → extract → review/correct → save → summaries
 
 ## Constraints
 - Runs fully local; no receipt data sent to external services
+- Needs a GPU that can run the vision model (on CPU a receipt takes minutes, well over the 30s target)
 - Original receipt image stored alongside the record
 - Inputs: JPG, PNG, and PDF (e-receipts)
 - PHP only
@@ -47,3 +48,4 @@ Upload → extract → review/correct → save → summaries
 - Tax filing or BIR compliance features
 - Native mobile app (PWA only)
 - Multi-currency
+- Cloud-hosted model (an idea for later: no GPU needed, but receipt photos would leave the machine, which breaks the "fully local" constraint)

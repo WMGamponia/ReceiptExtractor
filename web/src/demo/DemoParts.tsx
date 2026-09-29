@@ -24,9 +24,8 @@ export function DemoBanner() {
   return (
     <div className="demo-banner" role="note">
       <span>
-        <strong>Demo</strong> with made-up receipts. Everything stays in your browser; the real app runs on your own
-        computer, AI model included.
-        {live && " Your own photos can be read on the author's PC right now."}
+        <strong>Demo</strong> with made-up receipts
+        {live ? "; photos you add are sent to the author's PC to be read." : '; nothing leaves your browser.'}
       </span>
       <button
         className="small"

@@ -16,7 +16,9 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 ## Why local-first
 
-Receipts are personal data: names, addresses, TINs, what you bought and where. Everything here runs on your own computer — the AI model included — so nothing gets sent to a cloud API. That also means no per-receipt API bill, but privacy is the main reason, not cost.
+Receipts are personal data: names, addresses, TINs, what you bought and where. The app and the AI model both run on your own computer, so nothing gets sent to a cloud API. That also means no per-receipt API bill, but privacy is the main reason, not cost.
+
+The catch is hardware: the model needs a capable GPU. `qwen3-vl:8b-instruct` is a 6 GB download and takes ~10–20s per receipt on my RX 9070 XT; on a CPU it takes minutes (see [Known issues (Docker)](#what-i-learned)). Running the model on a cloud service instead is an idea for later, not built yet: it would drop the GPU requirement, but receipt photos would leave your machine.
 
 ## What it extracts
 
