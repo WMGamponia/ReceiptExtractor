@@ -25,7 +25,7 @@ export function DemoBanner() {
     <div className="demo-banner" role="note">
       <span>
         <strong>Demo</strong> with made-up receipts
-        {live ? "; photos you add are read on the author's PC right now." : '; nothing leaves your browser.'}
+        {live ? "; photos you add are sent to the author's PC to be read." : '; nothing leaves your browser.'}
       </span>
       <button
         className="small"
