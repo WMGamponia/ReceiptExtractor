@@ -1,26 +1,105 @@
 # Receipt Tracker
 
-Snap or upload a Philippine receipt, get a clean record, and see where your money went — **without receipt data ever leaving your machine.**
-
-**Try the demo: https://receipt-tracker-demo.pages.dev** (made-up receipts, runs in your browser, no install; see [Demo site](#demo-site-no-install)).
+Snap or upload a Philippine receipt, get a clean record, and see where your money went. **The app and its AI model run on your own computer, so your receipts never leave it.**
 
 ![The real app on a PC: a receipt is uploaded, the local model reads it in a few seconds, the swapped date is fixed in the review screen, and the receipt counts toward August's spending](docs/demo.gif)
 
 *The real app (Docker, `qwen3-vl:8b-instruct` on an AMD GPU) with a synthetic receipt: the model reads `08/09/2026` as September 8, the date is fixed in review ("You corrected"), and it shows up in August's spending.*
 
-> 🚧 **Work in progress.** Extraction approach chosen (step 3 of the [roadmap](ROADMAP.md)); ASP.NET Core backend working end to end (step 4); React + TypeScript PWA built and tested end to end on laptop + phone (step 5); PH-specific touches done (step 6): local categories, peso formatting, VAT-inclusive math, CSV export. Packaged (step 7): a single Windows exe, or `docker compose up` with demo data. CI on every PR (step 8): tests, the eval scored from cached model outputs, the Docker build. Demo site live and demo GIF recorded (step 9), plus an on-demand live demo that reads visitors' own photos on my PC.
+> **Status:** works end to end, from photo to reviewed receipt to spending summary, and ships as Docker, a Windows exe and a demo site. Still growing the test dataset and tuning the prompt; see the [roadmap](ROADMAP.md).
 >
 > _Last updated: 2026-09-29_
 
 **Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 
-## Why local-first
+## Try it
 
-Receipts are personal data: names, addresses, TINs, what you bought and where. The app and the AI model both run on your own computer, so nothing gets sent to a cloud API. That also means no per-receipt API bill, but privacy is the main reason, not cost.
+**Quickest (nothing to install):** open **https://receipt-tracker-demo.pages.dev**. It runs in your browser with made-up receipts, and the sample photos under **Add** replay the real model's answers. Uploading **your own** receipt photo there only works while my PC is online running the [live demo](docs/live-demo.md#read-on-the-authors-pc-live-demo-on-demand) (the model reads it on my PC, and nothing is kept); the rest of the time the site says so and you can use the samples.
 
-The catch is hardware: the model needs a capable GPU. `qwen3-vl:8b-instruct` is a 6 GB download and takes ~10–20s per receipt on my RX 9070 XT; on a CPU it takes minutes (see [Known issues (Docker)](#what-i-learned)). Running the model on a cloud service instead is an idea for later, not built yet: it would drop the GPU requirement, but receipt photos would leave your machine.
+**On your own PC (needs [Docker Desktop](https://www.docker.com/products/docker-desktop/)):** how long it takes depends on how far you go:
 
-## What it extracts
+| | Takes about | You get |
+|---|---|---|
+| **1. The app with sample data** (below) | ~5 minutes once Docker Desktop is installed (~1 GB download) | Every screen, 47 sample receipts to review and chart. Your own photos can't be read yet |
+| **2. Reading your own receipts** ([below](#reading-your-own-receipts)) | Another 6 GB model download (~10 min at 100 Mbps), plus installing Ollama if you use it outside Docker | Uploads read in ~10–20s each on a good GPU, **minutes each on a CPU** |
+
+If Docker Desktop isn't installed yet, add its install (on Windows it may also set up WSL 2 and ask you to restart).
+
+**Step-by-step guides** (installing Docker, troubleshooting, checking the GPU is used): [Windows](docs/install/windows.md) · [Linux](docs/install/linux.md) · [NVIDIA GPU](docs/install/nvidia-gpu.md) · [AMD GPU](docs/install/amd-gpu.md). The quick version is below.
+
+Run these in a terminal. **`docker compose` must be run from the project's root folder** (the `ReceiptExtractor` folder that contains `docker-compose.yml`), not from a subfolder like `web` or `src`:
+
+```bash
+git clone https://github.com/WMGamponia/ReceiptExtractor.git
+cd ReceiptExtractor          # the project root: docker-compose.yml is here
+docker compose up --build
+```
+
+If you see `no configuration file provided: not found`, you're in the wrong folder: `cd` into `ReceiptExtractor` and try again. All the `docker compose` commands below are run from the same folder.
+
+Then open **http://localhost:5080**. The first build takes a few minutes. What you'll see:
+
+- **Receipts:** 7 real receipts (TINs redacted) waiting for review. Open one to see the photo next to the extracted fields and the VAT check, then confirm it.
+- **Spending:** 40 made-up receipts from the past year, with totals by category, a chart, and **Export CSV**.
+- **Add:** uploading **your own photo won't work yet.** It fails with "Can't reach Ollama" because this command starts the app without the AI model. To have uploads read, see [Reading your own receipts](#reading-your-own-receipts) below.
+
+Stop it with `docker compose down`, or `docker compose down -v` to also delete the data.
+
+### Reading your own receipts
+
+The app sends each photo to a vision model running on your PC through [Ollama](https://ollama.com). This is the slow part of the setup: the model is a 6 GB download, and without a supported GPU each receipt takes minutes (see [Limitations](#limitations)). If you just want to see the model at work, the [demo site](https://receipt-tracker-demo.pages.dev)'s sample photos replay its real answers. Pick one:
+
+| Your PC | Do this | Speed per receipt |
+|---|---|---|
+| **Has a GPU** (NVIDIA, AMD Radeon, or an Apple Silicon Mac): recommended | 1. Install [Ollama](https://ollama.com/download) on your PC (not in Docker).<br>2. `ollama pull qwen3-vl:8b-instruct` (6 GB, once).<br>3. `OLLAMA_URL=http://host.docker.internal:11434 docker compose up --build`<br>(PowerShell: `$env:OLLAMA_URL="http://host.docker.internal:11434"; docker compose up --build`) | ~10–20s (9s median on an AMD RX 9070 XT) |
+| **Has no GPU** (or you don't want to install anything besides Docker) | `docker compose --profile ai up --build`. It also runs Ollama in Docker and downloads the 6 GB model once (`docker compose logs -f ollama-pull` shows progress) | **Minutes**: it runs on the CPU |
+
+**Why Ollama on the PC for a GPU:** Docker Desktop on Windows and macOS can't give containers an AMD or Apple GPU, so Ollama in Docker would fall back to the CPU. Ollama installed on the PC uses the GPU directly. For AMD it uses ROCm: install a current AMD Adrenalin driver, and check that your card is on [Ollama's supported GPU list](https://docs.ollama.com/gpu) (Radeon RX 7000 and 9000 series; my RX 9070 XT works on Windows even though the list only shows it for Linux). Ollama may also use other GPUs through Vulkan, but I haven't tried that. To confirm the GPU is being used, run `ollama ps` while a receipt is being read: it should say `100% GPU`. Details for each card and system: [NVIDIA GPU](docs/install/nvidia-gpu.md), [AMD GPU](docs/install/amd-gpu.md) (Linux users can also run Ollama in Docker on the GPU; both guides explain how).
+
+Receipts uploaded before the model is ready can be retried with **Try again**.
+
+### What you need
+
+| Software | Needed for | Required? |
+|---|---|---|
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows needs WSL 2, which Docker's installer sets up) | Running the app | **Yes** (or the .NET/Node tools below) |
+| A modern browser (Chrome, Edge, Firefox, Safari) | Using the app | **Yes** |
+| [Ollama](https://ollama.com) + the `qwen3-vl:8b-instruct` model | Reading uploaded receipts | Only to read your own photos (can also run inside Docker with `--profile ai`) |
+| Git | Cloning the repo | Or download the ZIP from GitHub |
+| [.NET 10 SDK](https://dotnet.microsoft.com/download) + [Node.js 20+](https://nodejs.org) | Running without Docker, or building the Windows exe | Only for development |
+| Python 3.12 (+ optionally Tesseract) | The extraction eval | Only to re-run the bake-off |
+
+### Limitations
+
+- **The AI model needs a capable GPU.** Receipts take ~10–20s each on a desktop GPU (tested on an AMD RX 9070 XT) and **minutes on a CPU**: even the smaller `qwen3-vl:2b-instruct` took 99s per receipt in Docker on a 24-thread CPU (and missed the date). The GPU has to be one Ollama supports (recent NVIDIA, AMD or Apple Silicon). Running the model on a cloud service would drop this requirement, but receipt photos would leave your machine; it's an idea for later, not built.
+- **Docker Desktop on Windows can't use an AMD GPU.** On an AMD Windows PC, install Ollama itself and use the `OLLAMA_URL` command above. The NVIDIA/AMD GPU files for the Ollama container (`docker-compose.nvidia.yml`, `docker-compose.amd.yml`) haven't been tested.
+- **Memory and disk:** about 1 GB for the app image, plus 6 GB for the model and ~8 GB of RAM to run it in Docker.
+- **Port 5080** must be free (and 11434 if Ollama runs on your PC).
+- **Built for Philippine receipts:** peso amounts, 12% VAT included in the total, BIR-style receipts. Other countries' receipts will be read, but the VAT check won't make sense for them.
+- **JPG and PNG photos only** (no PDFs or HEIC).
+- **The model makes mistakes:** 86% of dates, merchants and totals are right on the 7 labeled receipts (a small sample; see [Known issues](#known-issues)). That's why every receipt goes through a review screen, and suspicious ones are flagged.
+- **One user, no logins.** Anyone who can reach port 5080 sees every receipt, so don't expose it to the internet.
+- **Sample data is Docker only.** `dotnet run` and the Windows exe start with an empty database.
+- **The Windows exe is unsigned,** so SmartScreen warns the first time (**More info → Run anyway**).
+- **Installing it as a phone app needs HTTPS**, which the local app doesn't have. Opening it in the phone's browser on the same Wi-Fi works.
+
+## What this project shows
+
+- **The approach was chosen by testing, not guessing.** Before building the app, I hand-labeled real receipts and compared OCR + LLM against a vision model on them: 19% vs 86% core accuracy ([bake-off](#extraction-bake-off)).
+- **CI blocks merging if accuracy drops under 85%.** The model's outputs are committed, so CI scores them without a GPU, and it fails if the prompt, model or dataset changes without a re-run.
+- **Privacy by design.** Everything runs locally; OCR text (with TINs) never goes into git; the public live demo registers no database or storage and keeps nothing.
+- **Built for how models fail.** Extraction runs in a background queue with live status; a VAT checksum and date checks send suspicious receipts to review; corrections can be locked and the rest re-read.
+- **One rule, three languages, one set of tests.** The VAT check exists in C#, TypeScript and Python, and all three run against the same cases in `tests/vat-cases.json`.
+- **Shipped three ways:** `docker compose up` with sample data, a single-file Windows exe, and a static demo site that replays real model answers.
+
+## What it does
+
+- **Add:** take a photo (opens the back camera on a phone) or drop/pick files. The model reads each one in the background.
+- **Receipts:** everything waiting for review, with status updating live while the model reads. Tick receipts (or **Select all ready to confirm**) and confirm them in one go; anything that failed a check is called out before you confirm.
+- **Review:** the photo next to the extracted fields. VAT math is re-checked as you type, and future dates are flagged (the model sometimes swaps day and month). The photo can be rotated, zoomed and dragged; **←.** / **.→** move a misplaced decimal point (`112446.00` → `1,124.46`); **Work out VAT from the total** fills in missing VAT lines; **Re-extract** keeps your corrections and has the model re-read the rest.
+- **Spending:** totals for any day, ISO week, month, calendar quarter or year, broken down by category (confirmed receipts only). **Export CSV** downloads the period's receipts with plain-number amounts a spreadsheet can add up.
+
+It extracts these fields:
 
 | Field | Example |
 |---|---|
@@ -38,6 +117,12 @@ Full scope and non-goals: [SCOPE.md](SCOPE.md).
 ### A tracker, not a tax tool
 
 This shows where your money went. It doesn't file anything with the BIR, compute your taxes or claim a receipt is valid for deductions. The VAT check only confirms that a receipt's own numbers add up (VATable sales + 12% VAT = total), to catch misreads.
+
+## How it works
+
+**Why local-first:** receipts are personal data: names, addresses, TINs, what you bought and where. The app and the AI model both run on your own computer, so nothing gets sent to a cloud API. That also means no per-receipt API bill, but privacy is the main reason, not cost. The trade-off is the GPU requirement (see [Limitations](#limitations)).
+
+**How a receipt flows:** upload → saved to disk + DB row `Queued` → background worker sends the image to Ollama with a JSON schema → model output parsed and cleaned (e.g. "LAZADA Edifier" → "LAZADA") → checks run (VAT breakdown: VATable + VAT + VAT-exempt = total, or = total + discount for senior citizen / PWD discounts; VAT = 12% of VATable sales; date; total) → `Extracted`, or `NeedsReview` with reasons → user confirms/corrects → `Confirmed`. If a correction should change other fields too (e.g. the right VAT line), **Re-extract** keeps the corrected fields, tells the model they're correct, and re-reads the rest. The model's raw output is kept, so user corrections can later become new eval data.
 
 ## Extraction bake-off
 
@@ -65,101 +150,18 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **Plain OCR breaks on real-world receipts.** Tesseract returned almost nothing on 3 of 7 receipts (rotated, faded, low contrast), and it can't read stylized logos, so the store name often never reaches the LLM.
 - **One misread digit ruins a field.** `15,190` became `73,190`; `Dec 21 2025` became `Dec 24 7025`.
 - **Two kinds of error need two kinds of fix.** *Reading* errors (bad OCR) need a better OCR engine or a better photo. *Understanding* errors (e.g. picking the BIR "Date of ATP" printer-permit date instead of the transaction date) are fixed in the prompt.
-- **PH receipts have a built-in checksum.** VAT is included in the total, so `vatable sales + VAT = total` and `VAT = total × 12/112`. Checking that flagged every bad Tesseract result and none of the vision results — it'll be used in the app to send suspicious receipts to review.
+- **PH receipts have a built-in checksum.** VAT is included in the total, so `vatable sales + VAT = total` and `VAT = total × 12/112`. Checking that flagged every bad Tesseract result and none of the vision results, so the app uses it to send suspicious receipts to review.
 - **Prompts are suggestions; code is a rule.** Asking for "centavos exactly as printed" fixed dropped decimals, but the model still ignored a rule about marketplace names. Exact rules belong in code after extraction.
 
-**Known issues (Docker):** reading receipts on CPU is slow — `qwen3-vl:2b-instruct` took 99s per receipt in Docker on a 24-thread CPU (and missed the date); the 8B model is slower and needs ~8 GB of RAM for Docker. Docker Desktop can't use AMD GPUs on Windows, so use Ollama on the host there. The NVIDIA and AMD override files are untested (no hardware to try them on).
+### Known issues
 
-**Known issues:** adding VAT-exempt sales and discount to the prompt cost some accuracy: the WCSI receipt's merchant and date are misread ("WAL TER-APM", 2026-11-01). The later tax-table and "Less VAT" notes fixed the FLYQUIP receipt's false ₱680 discount, but now its whole total comes back as VAT-exempt sales, and WCSI's total as VATable sales with no VAT (the VAT check catches that one). Core accuracy is 86%, one miss above the 85% target, so the next prompt change that costs a field will fail CI. None of the labeled receipts has a real discount yet. The Lazada receipt comes back as "LAZADA Edifier" instead of "LAZADA". Seven receipts is a small sample — the dataset is growing toward 30–50, including handwritten sari-sari receipts.
+- **Accuracy is one miss above the target.** Core accuracy is 86% against the 85% target, so the next prompt change that costs a field will fail CI. Teaching the model VAT-exempt sales and discounts cost some accuracy: the original bake-off scored 95%.
+- **Where it's wrong:** two merchant names (one misread, one with an extra word: "LAZADA Edifier"), one date with day and month swapped, and the VAT split on two receipts (the whole total put under VAT-exempt or VATable sales). The VAT check flags one of those. Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
+- **Small sample.** Seven receipts, none with a real discount yet. The dataset is growing toward 30–50, including handwritten sari-sari receipts.
 
-## Running the evaluation
+## For developers
 
-Requirements: Windows/macOS/Linux, Python 3.12, [Ollama](https://ollama.com), and optionally [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) (Windows: `winget install -e --id UB-Mannheim.TesseractOCR`).
-
-```bash
-python -m venv .venv
-.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
-ollama pull qwen3-vl:8b-instruct
-
-# one receipt, one approach
-python eval/try_vision.py datasets/labels/20251220_DataBlitz.jpg
-
-# one receipt, all approaches side by side (with raw OCR text)
-python eval/compare_approaches.py datasets/labels/20251220_DataBlitz.jpg
-
-# every labeled receipt, scored -> eval/RESULTS.md
-python eval/run_eval.py --only vision tesseract
-```
-
-Predictions are cached in `eval/preds/` and re-run automatically when the model or prompt changes (`--fresh` forces a re-run).
-`eval/preds/` holds OCR text, so it's never committed; each run also saves the extracted fields and timing (no OCR text) to `eval/model_outputs/`, which **is** committed so CI can score the eval without a GPU. **After changing the prompt, re-run the eval and commit `eval/model_outputs/`**, or CI fails.
-
-```bash
-python eval/run_eval.py --offline --only vision --check   # score the committed outputs, like CI
-python -m unittest discover -s eval -p "test_*.py"        # scoring rules
-```
-
-## Demo site (no install)
-
-Live at **https://receipt-tracker-demo.pages.dev**. `npm run build:demo` builds the web app as a static site that needs no server and no AI model, for Cloudflare Pages:
-
-- **Made-up data only.** 40 confirmed receipts over the past year fill the Spending page, dated relative to today so it never looks stale. Everything a visitor does stays in their browser (`localStorage`); **Reset demo** starts over.
-- **Real model answers on synthetic receipts.** Real receipt photos are personal data, so they never go on the demo. `eval/make_demo_receipts.py` draws five made-up PH receipts (made-up stores, TIN `000-000-000-000`: a carinderia, a supermarket with a VAT tax table, a pharmacy with a senior citizen discount, a tilted and faded gas-station slip, a non-VAT sari-sari store) and has the real app read them with `qwen3-vl:8b-instruct`. On **Add**, picking one replays the model's actual answer after the time it really took, mistakes included: it reads the pharmacy's `08/09/2026` as September 8 (day and month swapped) and files the sari-sari store under Food.
-- Uploading your own photo explains that reading receipts needs the model on your own computer, **unless the live demo is on** (below). **Re-extract** always does.
-
-How it works: `src/api.ts` exports `demoApi` (`src/demo/`) instead of the HTTP client when built with `--mode demo`. It mirrors the API's rules (validation, checks, bulk confirm, corrections) and ports the summary periods and CSV export to TypeScript; the normal build contains none of it.
-
-```bash
-cd web
-npm run build:demo                     # -> web/dist
-npx vite preview --mode demo           # try it at http://localhost:4173
-
-# after changing the prompt or the synthetic receipts (needs the app running with Ollama):
-python eval/make_demo_receipts.py render
-python eval/make_demo_receipts.py read --api http://localhost:5080
-```
-
-### Read on the author's PC (live demo, on demand)
-
-While I run `scripts/live-demo.ps1`, visitors' **own** photos are read by the real model on my PC and the answer comes back to their browser; everything else still happens in the browser. It's off by default, and the site falls back to the samples when it is.
-
-- **Nothing is kept.** The API starts in a separate, minimal mode (`--LiveDemo:Enabled=true`, `src/ReceiptExtractor.Api/LiveDemo/`) that registers no database and no storage: two endpoints (`GET /api/live`, `POST /api/extract`), the photo read in memory and dropped. Logs have size, time and outcome only. My real app (port 5080) and Ollama are never exposed.
-- **Limits:** photos up to 15 MB (bigger uploads are cut off unread), one photo at a time on the GPU (3 more may wait), 20 per visitor an hour, 100 per run, 2 minutes per photo, and it stops itself after 3 hours. Only `receipt-tracker-demo.pages.dev` may read the answers (CORS).
-- **In the browser:** `web/src/demo/liveReader.ts` checks whether the PC is on (`VITE_LIVE_URL`), sends photos one at a time, and turns errors into plain messages. Samples always replay their recorded answers.
-
-One-time setup:
-1. Install [Tailscale](https://tailscale.com/download) and sign in.
-2. In the Tailscale admin console, rename this PC (e.g. `receipt-demo`) so its real name isn't in the public address.
-3. Run the script once: the first `tailscale funnel` prints a link to allow Funnel (and HTTPS) on the tailnet.
-4. Cloudflare Pages → the project → Settings → Variables: `VITE_LIVE_URL` = the address the script prints (`https://receipt-demo.<tailnet>.ts.net`), then redeploy.
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\live-demo.ps1   # needs Ollama with the model; Ctrl+C to stop
-```
-
-It starts Ollama and Tailscale if they aren't running. Or double-click `LiveDemo.exe`, which runs the script in its own window: build it once with `dotnet publish scripts/LiveDemoLauncher -o publish/live-demo` (it remembers this checkout's folder, so build it on the PC that runs the demo).
-
-To try a Cloudflare preview of a branch (only one site may read the answers): set `VITE_LIVE_URL` for Preview builds too, and add `-AllowedOrigin https://<branch>.receipt-tracker-demo.pages.dev`.
-
-Trying it without the tunnel: run the API with `--urls http://localhost:5090 --LiveDemo:Enabled=true --LiveDemo:AllowedOrigin=http://localhost:4173`, then `VITE_LIVE_URL=http://localhost:5090 npm run build:demo` and `npx vite preview --mode demo`.
-
-**Deploying to Cloudflare Pages:** Workers & Pages → Create → Pages → Connect to Git → this repo, then: root directory `web`, build command `npm run build:demo`, build output `dist`, environment variable `NODE_VERSION` = `24`. Every push to `main` redeploys. Page routes such as `/receipts/…` work without extra setup (Pages serves `index.html` for them).
-
-## Continuous integration
-
-`.github/workflows/ci.yml` runs on every pull request and on `main`, with four jobs:
-
-| Job | What it checks |
-|---|---|
-| API tests | `dotnet test` (parsing, VAT math, periods, CSV, seed data, and that the app's prompt matches the eval's) |
-| Web app | `npm run lint`, `npm test`, `npm run build`, `npm run build:demo` |
-| Extraction eval | Scores the committed `eval/model_outputs/` (no GPU, no Ollama). **Fails** if core accuracy drops under 85%, or if the prompt, model or dataset changed without re-running the eval. The results table is on the run's summary page |
-| Docker | `docker build` |
-
-The VAT check lives in three places (API, web app, eval), so all three are tested against the same cases in `tests/vat-cases.json`.
-
-## Run it as a desktop app (Windows)
+### Run it as a desktop app (Windows)
 
 Build once:
 
@@ -172,39 +174,17 @@ That creates **`publish\ReceiptTracker.exe`**, a single file containing the API 
 - Your database and receipt images are saved in a `data` folder next to the exe, so the whole folder is portable.
 - To change settings (model, Ollama address, port) without rebuilding, put a `settings.json` next to the exe, e.g. `{ "Ollama": { "Model": "qwen3-vl:4b-instruct" } }`.
 - To use it from your phone on the same Wi-Fi: `ReceiptTracker.exe --urls http://0.0.0.0:5080`, then open `http://<your-PC's-IP>:5080`. This makes it reachable by anyone on your network, since there are no logins.
-- Windows may show a SmartScreen warning the first time because the exe isn't code-signed: **More info → Run anyway**.
 
-## Run with Docker
+### Run with Docker
 
-Requirements: [Docker](https://www.docker.com/products/docker-desktop/) (Docker Desktop on Windows/macOS). Nothing else — no .NET, Node or Ollama.
+The basics are in [Try it](#try-it). More options:
 
-```bash
-docker compose up --build
-```
+- **What's in it:** the API + web app in one image, with the SQLite database and images in the `app-data` volume. On first start, an empty database is filled with the sample receipts; delete them from the Receipts page whenever you like, and a database that has receipts is never seeded again (`Seed:Enabled`).
+- **GPU for the Ollama container:** add `-f docker-compose.yml -f docker-compose.nvidia.yml` (NVIDIA) or `-f docker-compose.amd.yml` (AMD, Linux only).
+- **A different model:** `MODEL=qwen3-vl:4b-instruct docker compose --profile ai up`. Smaller models are faster but less accurate (only the 8B was scored in the bake-off).
+- `docker compose down -v` also deletes the downloaded model.
 
-Open http://localhost:5080. This runs the app (API + web app + SQLite database in the `app-data` volume) without the AI model, so it's a ~1 GB download: every screen works, but uploaded receipts fail with "Can't reach Ollama" until you add a model (below).
-
-**Demo data:** on first start the Docker app fills its empty database with receipts to try things on:
-- **To review:** the 7 hand-labeled receipts from the eval, with their photos and the correct values, ready to open and confirm.
-- **Confirmed:** 40 made-up receipts over the past 12 months across all categories (Jollibee, Petron, Meralco, Mercury Drug with a senior citizen discount, a sari-sari store without VAT…), so the Spending page, the chart and **Export CSV** have data. They show a "Sample receipt" picture instead of a photo.
-
-Delete them from the Receipts page whenever you like; a database that has receipts is never seeded again. The exe and `dotnet run` don't seed (`Seed:Enabled` is off).
-
-Adding a model, one of two ways:
-
-| | Command | Download | Speed per receipt |
-|---|---|---|---|
-| **Ollama already on your PC** (uses your GPU) | `OLLAMA_URL=http://host.docker.internal:11434 docker compose up --build` | nothing extra | ~10–20s on my RX 9070 XT |
-| **Ollama in Docker** | `docker compose --profile ai up --build` | + Ollama image and the 6 GB model | minutes on CPU (see below) |
-
-(PowerShell: `$env:OLLAMA_URL="http://host.docker.internal:11434"; docker compose up --build`.)
-
-- With `--profile ai`, an `ollama-pull` container downloads the model once and exits; follow it with `docker compose logs -f ollama-pull`. Receipts uploaded before it finishes can be retried with **Try again**.
-- GPU for the Ollama container: add `-f docker-compose.yml -f docker-compose.nvidia.yml` (NVIDIA) or `-f docker-compose.amd.yml` (AMD, Linux only). Docker Desktop on Windows can't pass an AMD GPU through, so on an AMD Windows PC use Ollama on the host instead.
-- A different model: `MODEL=qwen3-vl:4b-instruct docker compose --profile ai up`. Smaller models are faster but less accurate (only the 8B was scored in the bake-off).
-- Stop with `docker compose down`. Your receipts stay in the `app-data` volume; `docker compose down -v` deletes them (and the downloaded model).
-
-## Downloading the model (without Docker)
+### Downloading the model (without Docker)
 
 `scripts\pull-model.ps1` (Windows) or `scripts/pull-model.sh` (Linux/macOS) downloads the model the app is set to use into your local Ollama, and does nothing if it's already there:
 
@@ -213,7 +193,7 @@ powershell -ExecutionPolicy Bypass -File scripts\pull-model.ps1        # model f
 powershell -ExecutionPolicy Bypass -File scripts\pull-model.ps1 -Model qwen3-vl:4b-instruct
 ```
 
-## Running the API
+### Running the API
 
 Requirements: [.NET 10 SDK](https://dotnet.microsoft.com/download) and Ollama running with `qwen3-vl:8b-instruct` pulled.
 
@@ -241,9 +221,7 @@ dotnet test                                       # unit tests
 
 `src/ReceiptExtractor.Api/ReceiptExtractor.Api.http` has ready-made requests you can click in Visual Studio. The database (`receipts.db`) and uploaded images (`storage/`) are created on first run; columns added later are patched into an existing database on startup (`Data/SchemaPatches.cs`).
 
-**How a receipt flows:** upload → saved to disk + DB row `Queued` → background worker sends the image to Ollama with a JSON schema → model output parsed and cleaned (e.g. "LAZADA Edifier" → "LAZADA") → checks run (VAT breakdown: VATable + VAT + VAT-exempt = total, or = total + discount for senior citizen / PWD discounts; VAT = 12% of VATable sales; date; total) → `Extracted`, or `NeedsReview` with reasons → user confirms/corrects → `Confirmed`. If a correction should change other fields too (e.g. the right VAT line), **Re-extract** keeps the corrected fields, tells the model they're correct, and re-reads the rest. The model's raw output is kept, so user corrections can later become new eval data.
-
-## Running the web app
+### Running the web app
 
 Requirements: Node.js 20+, and the API running (above).
 
@@ -254,14 +232,54 @@ npm run dev          # http://localhost:5173 — /api calls are proxied to the A
 npm test             # unit tests (formatting, VAT warnings)
 ```
 
-- **Spending** — totals for any day, ISO week, month, calendar quarter or year, broken down by category (confirmed receipts only). **Export CSV** downloads the period's receipts for a spreadsheet: date (`20251220`), merchant, category, total, VAT, VATable / VAT-exempt sales, discount. Amounts are plain numbers (`1124.46`) so the spreadsheet can add them up
-- **Receipts** — everything waiting for review, with status updating live while the model reads. Tick receipts (or **Select all ready to confirm**) and confirm them in one go; anything that failed a check is called out before you confirm
-- **Review** — the photo next to the extracted fields; VAT math is re-checked as you type, and future dates are flagged (the model sometimes swaps day and month). The photo can be rotated, zoomed (buttons, scroll wheel, pinch, double-click) and dragged around; **Save rotation** stores the upright image without re-running extraction, and zoom is never saved. Amounts show as `10,495.00`; the **←.** / **.→** buttons next to each amount move the decimal point when the model misplaced it (`112446.00` → `1,124.46`), and if a receipt's VAT lines are missing, **Work out VAT from the total** splits it (12% VAT is included in PH totals)
-- **Add** — take a photo (opens the back camera on a phone) or drop/pick files
+**On your phone:** with both running, open `http://<your-PC's-IP>:5173` on the same Wi-Fi. "Take photo" opens the camera.
 
-**On your phone:** with both running, open `http://<your-PC's-IP>:5173` on the same Wi-Fi. "Take photo" opens the camera. Installing it as an app needs HTTPS, which comes with the hosted demo link (step 9).
+### Running the evaluation
 
-## Project structure
+Requirements: Windows/macOS/Linux, Python 3.12, [Ollama](https://ollama.com), and optionally [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) (Windows: `winget install -e --id UB-Mannheim.TesseractOCR`).
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+ollama pull qwen3-vl:8b-instruct
+
+# one receipt, one approach
+python eval/try_vision.py datasets/labels/20251220_DataBlitz.jpg
+
+# one receipt, all approaches side by side (with raw OCR text)
+python eval/compare_approaches.py datasets/labels/20251220_DataBlitz.jpg
+
+# every labeled receipt, scored -> eval/RESULTS.md
+python eval/run_eval.py --only vision tesseract
+```
+
+Predictions are cached in `eval/preds/` and re-run automatically when the model or prompt changes (`--fresh` forces a re-run).
+`eval/preds/` holds OCR text, so it's never committed; each run also saves the extracted fields and timing (no OCR text) to `eval/model_outputs/`, which **is** committed so CI can score the eval without a GPU. **After changing the prompt, re-run the eval and commit `eval/model_outputs/`**, or CI fails.
+
+```bash
+python eval/run_eval.py --offline --only vision --check   # score the committed outputs, like CI
+python -m unittest discover -s eval -p "test_*.py"        # scoring rules
+```
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request and on `main`, with four jobs:
+
+| Job | What it checks |
+|---|---|
+| API tests | `dotnet test` (parsing, VAT math, periods, CSV, seed data, and that the app's prompt matches the eval's) |
+| Web app | `npm run lint`, `npm test`, `npm run build`, `npm run build:demo` |
+| Extraction eval | Scores the committed `eval/model_outputs/` (no GPU, no Ollama). **Fails** if core accuracy drops under 85%, or if the prompt, model or dataset changed without re-running the eval. The results table is on the run's summary page |
+| Docker | `docker build` |
+
+The VAT check lives in three places (API, web app, eval), so all three are tested against the same cases in `tests/vat-cases.json`.
+
+### Demo site and live demo
+
+How the demo site is built and deployed to Cloudflare Pages, how its sample receipts are made, and how the on-demand live demo works (Tailscale Funnel, limits, setup): [docs/live-demo.md](docs/live-demo.md).
+
+### Project structure
 
 ```
 ReceiptExtractor.sln
@@ -294,6 +312,8 @@ web/
 datasets/
   labels/        receipt images
   receipts/      hand-labeled ground truth (one JSON per image)
+docs/            demo GIF, live-demo.md (demo site + live demo), design specs
+  install/       step-by-step install guides: Windows, Linux, NVIDIA GPU, AMD GPU
 eval/
   try_vision.py            one receipt through the vision model
   compare_approaches.py    vision vs Tesseract vs PaddleOCR on one receipt
@@ -307,6 +327,6 @@ SCOPE.md         what the MVP does and doesn't do
 ROADMAP.md       steps to finish
 ```
 
-## Privacy note
+### Privacy note
 
 `eval/preds/` holds the full OCR text of each receipt (including TINs), so it's in `.gitignore`. `eval/model_outputs/` only has the extracted fields (merchant, date, amounts), the same values as the committed labels and `RESULTS.md`. Receipt images must have TINs and card digits redacted before they're committed.

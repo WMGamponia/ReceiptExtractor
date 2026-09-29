@@ -7,7 +7,7 @@
   Stops by itself after 3 hours (LiveDemo:StopAfter), or press Ctrl+C. Either way, Funnel is turned off again.
   To try a Cloudflare preview of a branch instead of the live site (only one site may read the answers):
     ... live-demo.ps1 -AllowedOrigin https://<branch>.receipt-tracker-demo.pages.dev
-  One-time setup (Tailscale, Funnel, VITE_LIVE_URL in Cloudflare Pages): README, "Read on the author's PC".
+  One-time setup (Tailscale, Funnel, VITE_LIVE_URL in Cloudflare Pages): docs/live-demo.md.
 #>
 param([int]$Port = 5090, [string]$AllowedOrigin)
 
