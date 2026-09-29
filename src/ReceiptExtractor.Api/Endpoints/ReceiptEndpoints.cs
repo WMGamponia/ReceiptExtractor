@@ -73,16 +73,6 @@ public static class ReceiptEndpoints
 {
     private const int MaxBulk = 500;
 
-    private const long MaxUploadBytes = 15 * 1024 * 1024;
-
-    private static readonly Dictionary<string, (string Ext, string ContentType)> AllowedFiles =
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            [".jpg"] = (".jpg", "image/jpeg"),
-            [".jpeg"] = (".jpg", "image/jpeg"),
-            [".png"] = (".png", "image/png"),
-        };
-
     public static IEndpointRouteBuilder MapReceiptEndpoints(this IEndpointRouteBuilder app)
     {
         var receipts = app.MapGroup("/api/receipts").WithTags("Receipts");
@@ -120,12 +110,12 @@ public static class ReceiptEndpoints
         TimeProvider time,
         CancellationToken ct)
     {
-        if (file.Length is 0 or > MaxUploadBytes)
-            return Invalid("file", $"File must be between 1 byte and {MaxUploadBytes / 1024 / 1024} MB.");
+        if (file.Length is 0 or > UploadRules.MaxBytes)
+            return Invalid("file", $"File must be between 1 byte and {UploadRules.MaxBytes / 1024 / 1024} MB.");
 
-        if (!AllowedFiles.TryGetValue(Path.GetExtension(file.FileName), out var type))
+        if (!UploadRules.AllowedFiles.TryGetValue(Path.GetExtension(file.FileName), out var type))
             return Invalid("file", "Only JPG and PNG are supported for now (PDF e-receipts are planned).");
-        if (!await LooksLikeImageAsync(file, ct))
+        if (!await UploadRules.LooksLikeImageAsync(file, ct))
             return Invalid("file", "That file isn't a valid JPG or PNG image.");
 
         var id = Guid.NewGuid();
@@ -206,11 +196,11 @@ public static class ReceiptEndpoints
         if (receipt.Status is ReceiptStatus.Queued or ReceiptStatus.Processing)
             return TypedResults.Conflict("Wait until extraction has finished before changing the image.");
 
-        if (file.Length is 0 or > MaxUploadBytes)
-            return Invalid("file", $"File must be between 1 byte and {MaxUploadBytes / 1024 / 1024} MB.");
-        if (!AllowedFiles.TryGetValue(Path.GetExtension(file.FileName), out var type))
+        if (file.Length is 0 or > UploadRules.MaxBytes)
+            return Invalid("file", $"File must be between 1 byte and {UploadRules.MaxBytes / 1024 / 1024} MB.");
+        if (!UploadRules.AllowedFiles.TryGetValue(Path.GetExtension(file.FileName), out var type))
             return Invalid("file", "Only JPG and PNG are supported.");
-        if (!await LooksLikeImageAsync(file, ct))
+        if (!await UploadRules.LooksLikeImageAsync(file, ct))
             return Invalid("file", "That file isn't a valid JPG or PNG image.");
 
         var folder = Path.GetDirectoryName(receipt.ImagePath)!;
@@ -235,18 +225,6 @@ public static class ReceiptEndpoints
         await db.SaveChangesAsync(ct);
 
         return TypedResults.Ok(ReceiptResponse.From(receipt));
-    }
-
-    /// <summary>Checks the file's first bytes: JPEG starts with FF D8 FF, PNG with 89 50 4E 47.</summary>
-    private static async Task<bool> LooksLikeImageAsync(IFormFile file, CancellationToken ct)
-    {
-        var header = new byte[4];
-        await using var stream = file.OpenReadStream();
-        var read = await stream.ReadAtLeastAsync(header, header.Length, throwOnEndOfStream: false, ct);
-        if (read < 3) return false;
-        var isJpeg = header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF;
-        var isPng = read == 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47;
-        return isJpeg || isPng;
     }
 
     private static async Task<Results<Ok<ReceiptResponse>, NotFound, Conflict<string>, ValidationProblem>> Confirm(

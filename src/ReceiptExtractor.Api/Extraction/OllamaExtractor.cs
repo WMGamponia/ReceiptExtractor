@@ -19,7 +19,11 @@ public sealed record ExtractionResult(ReceiptFields Fields, string? Category, st
 
 public interface IReceiptExtractor
 {
+    /// <param name="image">The photo (JPEG or PNG) as bytes; the live demo reads it from memory, never from a file.</param>
     /// <param name="hints">Values the user checked; the model is told they're correct (see <see cref="UserHints"/>).</param>
+    Task<ExtractionResult> ExtractAsync(byte[] image, IReadOnlyList<FieldHint> hints, CancellationToken ct);
+
+    /// <summary>Reads the image file, then as above.</summary>
     Task<ExtractionResult> ExtractAsync(string imagePath, IReadOnlyList<FieldHint> hints, CancellationToken ct);
 }
 
@@ -88,10 +92,12 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         NumberHandling = JsonNumberHandling.AllowReadingFromString,
     };
 
-    public async Task<ExtractionResult> ExtractAsync(string imagePath, IReadOnlyList<FieldHint> hints, CancellationToken ct)
+    public async Task<ExtractionResult> ExtractAsync(string imagePath, IReadOnlyList<FieldHint> hints, CancellationToken ct) =>
+        await ExtractAsync(await File.ReadAllBytesAsync(imagePath, ct), hints, ct);
+
+    public async Task<ExtractionResult> ExtractAsync(byte[] image, IReadOnlyList<FieldHint> hints, CancellationToken ct)
     {
         var opts = options.Value;
-        var image = await File.ReadAllBytesAsync(imagePath, ct);
 
         var request = new
         {

@@ -1,6 +1,7 @@
 // The demo site's stand-in for the API (`npm run build:demo`, see api.ts). There's no server and no model:
 // receipts live in this browser's localStorage, and "reading" a sample receipt replays the answer the real app gave
 // for it (model-answers.json, made by eval/make_demo_receipts.py). Mirrors the rules in Endpoints/ReceiptEndpoints.cs.
+// While the author runs scripts/live-demo.ps1, visitors' own photos are read on the author's PC (liveReader.ts).
 import {
   ApiError,
   CATEGORIES,
@@ -15,6 +16,7 @@ import {
 } from '../api'
 import { formatPeso, todayIso, vatWarnings } from '../format'
 import { csvDataUrl, receiptsCsv } from './csv'
+import { createLiveReader, type LiveReader, type LiveStatus } from './liveReader'
 import modelAnswers from './model-answers.json'
 import { summarize } from './periods'
 import { sampleReceipts } from './sampleReceipts'
@@ -32,6 +34,22 @@ export const NEEDS_MODEL =
   'Reading receipts needs the AI model, which runs on your own computer, not on this demo site. ' +
   'Try one of the sample receipts on the Add page, or fill in the fields yourself.'
 
+export const PAGE_CLOSED = "The page was closed before the author's PC finished reading it; upload the photo again."
+export const UPLOAD_AGAIN = 'This photo is no longer open in this page; upload it again.'
+
+// The author's PC (the live demo), if this build has an address for it (VITE_LIVE_URL).
+let live: LiveReader | undefined = /* @__PURE__ */ createLiveReader(import.meta.env.VITE_LIVE_URL)
+// Visitors' own photos, for Try again: this page only, never saved.
+const livePhotos = /* @__PURE__ */ new Map<string, File>()
+
+/** The author's PC, if it's reading photos right now (null when it isn't, or with no live demo). */
+export const liveStatus = (): Promise<LiveStatus | null> => live?.status() ?? Promise.resolve(null)
+
+/** Tests: stand in for the author's PC. */
+export function setLiveReader(reader: LiveReader | undefined) {
+  live = reader
+}
+
 const STORAGE_KEY = 'receipt-tracker-demo-v1'
 const PLACEHOLDER = '/demo/sample-receipt.png'
 const PRELOADED = ['botika-san-roque', 'petrolina-gas-station'] // waiting in "To review" on a first visit
@@ -40,6 +58,7 @@ const PRELOADED = ['botika-san-roque', 'petrolina-gas-station'] // waiting in "T
 interface DemoReceipt extends Receipt {
   model?: ReceiptUpdate
   readyAt?: number
+  live?: boolean // read (or being read) on the author's PC
 }
 
 // --- State: one list per browser, saved after every change -------------------------------------------------------
@@ -50,7 +69,16 @@ function load(): DemoReceipt[] {
   if (receipts) return receipts
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) receipts = JSON.parse(saved) as DemoReceipt[]
+    if (saved) {
+      receipts = JSON.parse(saved) as DemoReceipt[]
+      // A live read can't outlast the page: the photo was only in that page.
+      for (const r of receipts) {
+        if (r.live && (r.status === 'Queued' || r.status === 'Processing')) {
+          r.status = 'Failed'
+          r.error = PAGE_CLOSED
+        }
+      }
+    }
   } catch {
     // private window or blocked storage: start fresh, just don't remember it
   }
@@ -86,7 +114,7 @@ function initialReceipts(): DemoReceipt[] {
   })
   const toReview = SAMPLE_PHOTOS.filter((p) => PRELOADED.includes(p.key)).map((p) => {
     const r: DemoReceipt = { ...blank(p.url, p.fileName, new Date().toISOString()), model: answerFields(p.answer) }
-    applyAnswer(r, p.answer)
+    applyAnswer(r, answerFields(p.answer), p.answer.extractionSeconds)
     return r
   })
   return [...toReview, ...confirmed]
@@ -132,8 +160,8 @@ const answerFields = (a: Answer): ReceiptUpdate => ({
 })
 
 /** The model is done: its fields, the checks, and Extracted / NeedsReview (like ExtractionWorker). */
-function applyAnswer(r: DemoReceipt, a: Answer) {
-  Object.assign(r, answerFields(a), { extractionSeconds: a.extractionSeconds, readyAt: undefined })
+function applyAnswer(r: DemoReceipt, fields: ReceiptUpdate, extractionSeconds: number) {
+  Object.assign(r, fields, { extractionSeconds, readyAt: undefined })
   r.flags = checks(r)
   r.status = r.flags.length > 0 ? 'NeedsReview' : 'Extracted'
   finish(r)
@@ -185,11 +213,41 @@ function tick() {
   let changed = false
   for (const r of load()) {
     if (r.status === 'Processing' && r.readyAt != null && Date.now() >= r.readyAt) {
-      applyAnswer(r, SAMPLE_PHOTOS.find((p) => p.fileName === r.originalFileName)!.answer)
+      const { answer } = SAMPLE_PHOTOS.find((p) => p.fileName === r.originalFileName)!
+      applyAnswer(r, answerFields(answer), answer.extractionSeconds)
       changed = true
     }
   }
   if (changed) save()
+}
+
+/** Sends a visitor's photo to the author's PC: Queued → Processing → Extracted / NeedsReview, or Failed. */
+function startLiveRead(reader: LiveReader, id: string, file: File) {
+  const current = () => load().find((x) => x.id === id) // gone if deleted, or the demo was reset, meanwhile
+  reader
+    .read(file, () => {
+      const r = current()
+      if (!r) return false
+      r.status = 'Processing'
+      save()
+      return true
+    })
+    .then(
+      (answer) => {
+        const r = current()
+        if (!answer || !r) return
+        r.model = answer.fields // to list the visitor's corrections later
+        applyAnswer(r, answer.fields, answer.extractionSeconds)
+        save()
+      },
+      (e: Error) => {
+        const r = current()
+        if (!r) return
+        r.status = 'Failed'
+        r.error = e.message
+        save()
+      },
+    )
 }
 
 function find(id: string): DemoReceipt {
@@ -199,7 +257,7 @@ function find(id: string): DemoReceipt {
   return r
 }
 
-const publicCopy = ({ model: _model, readyAt: _readyAt, ...r }: DemoReceipt): Receipt => ({ ...r })
+const publicCopy = ({ model: _model, readyAt: _readyAt, live: _live, ...r }: DemoReceipt): Receipt => ({ ...r })
 
 // Answer asynchronously, like a real request.
 const later = <T>(make: () => T): Promise<T> => new Promise((resolve, reject) => setTimeout(() => {
@@ -221,17 +279,27 @@ export const demoApi = {
 
   getReceipt: (id: string) => later(() => publicCopy(find(id))),
 
-  uploadReceipt: (file: File) =>
-    later(() => {
-      const sample = SAMPLE_PHOTOS.find((p) => p.fileName === file.name)
+  uploadReceipt: async (file: File) => {
+    const sample = SAMPLE_PHOTOS.find((p) => p.fileName === file.name)
+    const reader = sample ? undefined : live
+    const online = reader != null && (await reader.status()) != null
+    return later(() => {
       const now = new Date().toISOString()
-      const r: DemoReceipt = sample
-        ? { ...blank(sample.url, sample.fileName, now), status: 'Processing', model: answerFields(sample.answer), readyAt: Date.now() + sample.answer.extractionSeconds * 1000 }
-        : { ...blank(URL.createObjectURL(file), file.name, now), status: 'Failed', error: NEEDS_MODEL }
+      let r: DemoReceipt
+      if (sample) {
+        // Samples always replay the recorded answer: quick, and they don't use up the live demo's reads.
+        r = { ...blank(sample.url, sample.fileName, now), status: 'Processing', model: answerFields(sample.answer), readyAt: Date.now() + sample.answer.extractionSeconds * 1000 }
+      } else {
+        r = { ...blank(URL.createObjectURL(file), file.name, now), status: 'Failed', error: NEEDS_MODEL }
+        if (reader) livePhotos.set(r.id, file) // Try again can send it once the PC is on
+        if (online) Object.assign(r, { status: 'Queued', error: null, live: true })
+      }
       load().unshift(finish(r))
       save()
+      if (online) startLiveRead(reader!, r.id, file)
       return publicCopy(r)
-    }),
+    })
+  },
 
   confirmReceipt: (id: string, update: ReceiptUpdate) =>
     later(() => {
@@ -307,9 +375,22 @@ export const demoApi = {
       return result
     }),
 
-  retryReceipt: (_id: string): Promise<Receipt> => later(() => {
-    throw new ApiError(409, NEEDS_MODEL)
-  }),
+  retryReceipt: async (id: string): Promise<Receipt> => {
+    const file = livePhotos.get(id)
+    const reader = file ? live : undefined
+    const online = reader != null && (await reader.status()) != null
+    return later(() => {
+      const r = find(id)
+      if (r.status === 'Queued' || r.status === 'Processing' || r.status === 'Confirmed')
+        throw new ApiError(409, `Can't retry a receipt that is ${r.status}.`)
+      if (!file) throw new ApiError(409, r.live ? UPLOAD_AGAIN : NEEDS_MODEL)
+      if (!online) throw new ApiError(409, NEEDS_MODEL)
+      Object.assign(r, { status: 'Queued', error: null, live: true })
+      save()
+      startLiveRead(reader!, id, file)
+      return publicCopy(r)
+    })
+  },
 
   reextractReceipt: (_id: string, _fields: ReceiptUpdate, _locked: LockableField[]): Promise<Receipt> => later(() => {
     throw new ApiError(409, NEEDS_MODEL)

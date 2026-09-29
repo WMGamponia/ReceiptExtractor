@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Receipt } from '../api'
 import { vatWarnings } from '../format'
 import { receiptsCsv } from './csv'
-import { demoApi, NEEDS_MODEL, resetDemo, SAMPLE_PHOTOS } from './demoApi'
+import { demoApi, NEEDS_MODEL, PAGE_CLOSED, resetDemo, SAMPLE_PHOTOS, setLiveReader, UPLOAD_AGAIN } from './demoApi'
+import type { LiveAnswer, LiveReader } from './liveReader'
 import { periodFor, summarize } from './periods'
 import { sampleReceipts } from './sampleReceipts'
 
@@ -131,5 +132,154 @@ describe('demoApi', () => {
     const r = await demoApi.uploadReceipt(new File(['x'], 'my-receipt.jpg'))
     expect(r).toMatchObject({ status: 'Failed', error: NEEDS_MODEL })
     await expect(demoApi.retryReceipt(r.id)).rejects.toMatchObject({ message: NEEDS_MODEL })
+  })
+})
+
+describe('demoApi with the live demo', () => {
+  const READING: LiveAnswer = {
+    fields: { merchant: 'Kusina ni Aling Rosa', date: '2026-09-01', total: 250, vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, category: 'Food' },
+    extractionSeconds: 12.5,
+  }
+  const photo = () => new File(['x'], 'mine.jpg', { type: 'image/jpeg' })
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
+
+  interface Pending {
+    file: File
+    onStart: () => boolean
+    resolve: (answer: LiveAnswer | null) => void
+    reject: (error: Error) => void
+  }
+
+  /** A stand-in for the author's PC: photos wait in `pending` until the test starts and answers them. */
+  function fakePc(online = true) {
+    const pending: Pending[] = []
+    const reader: LiveReader = {
+      status: async () => (online ? { model: 'qwen3-vl:8b-instruct', perVisitorPerHour: 20 } : null),
+      read: (file, onStart) => new Promise((resolve, reject) => pending.push({ file, onStart, resolve, reject })),
+    }
+    setLiveReader(reader)
+    return pending
+  }
+
+  afterEach(() => {
+    resetDemo()
+    setLiveReader(undefined)
+    vi.unstubAllGlobals()
+  })
+
+  it("reads your own photo on the author's PC when it's online", async () => {
+    const pending = fakePc()
+
+    const r = await demoApi.uploadReceipt(photo())
+    expect(r.status).toBe('Queued')
+    expect(pending[0].onStart()).toBe(true)
+    expect((await demoApi.getReceipt(r.id)).status).toBe('Processing')
+
+    pending[0].resolve(READING)
+    await flush()
+    const read = await demoApi.getReceipt(r.id)
+    expect(read).toMatchObject({ merchant: 'Kusina ni Aling Rosa', date: '2026-09-01', total: 250, category: 'Food', extractionSeconds: 12.5 })
+    expect(['Extracted', 'NeedsReview']).toContain(read.status)
+
+    const saved = await demoApi.confirmReceipt(r.id, { ...read, total: 260 })
+    expect(saved.corrections).toHaveLength(1) // compared with the model's answer
+    expect(saved.corrections[0]).toMatch(/^total: /)
+  })
+
+  it('runs the same checks on the answer', async () => {
+    const pending = fakePc()
+    const r = await demoApi.uploadReceipt(photo())
+    pending[0].onStart()
+
+    pending[0].resolve({ ...READING, fields: { ...READING.fields, total: null } })
+    await flush()
+
+    expect(await demoApi.getReceipt(r.id)).toMatchObject({ status: 'NeedsReview', flags: ['Total is missing.'] })
+  })
+
+  it('marks the photo Failed with the reason when the read goes wrong', async () => {
+    const pending = fakePc()
+    const r = await demoApi.uploadReceipt(photo())
+    pending[0].onStart()
+
+    pending[0].reject(new Error("The author's PC is busy; try again in a minute."))
+    await flush()
+
+    expect(await demoApi.getReceipt(r.id)).toMatchObject({ status: 'Failed', error: "The author's PC is busy; try again in a minute." })
+  })
+
+  it('Try again sends the same photo again', async () => {
+    const pending = fakePc()
+    const file = photo()
+    const r = await demoApi.uploadReceipt(file)
+    pending[0].onStart()
+    pending[0].reject(new Error('Reading took too long; try again.'))
+    await flush()
+
+    const retried = await demoApi.retryReceipt(r.id)
+
+    expect(retried).toMatchObject({ status: 'Queued', error: null })
+    expect(pending[1].file).toBe(file)
+  })
+
+  it('needs the model, as before, when the PC is off', async () => {
+    const pending = fakePc(false)
+
+    const r = await demoApi.uploadReceipt(photo())
+
+    expect(r).toMatchObject({ status: 'Failed', error: NEEDS_MODEL })
+    expect(pending).toHaveLength(0)
+  })
+
+  it('still replays the recorded answer for sample receipts', async () => {
+    const pending = fakePc()
+    const sample = SAMPLE_PHOTOS[0]
+
+    const r = await demoApi.uploadReceipt(new File(['x'], sample.fileName))
+
+    expect(r.status).toBe('Processing')
+    expect(pending).toHaveLength(0)
+  })
+
+  it('skips a photo deleted while it waited', async () => {
+    const pending = fakePc()
+    const r = await demoApi.uploadReceipt(photo())
+
+    await demoApi.deleteReceipt(r.id)
+
+    expect(pending[0].onStart()).toBe(false)
+  })
+
+  it('ignores answers that arrive after Reset demo', async () => {
+    const pending = fakePc()
+    const r = await demoApi.uploadReceipt(photo())
+    pending[0].onStart()
+
+    resetDemo()
+    pending[0].resolve(READING)
+    await flush()
+
+    expect((await demoApi.listReceipts()).some((x) => x.id === r.id)).toBe(false)
+  })
+
+  it('a read left unfinished by a closed page is Failed on the next visit', async () => {
+    const saved = new Map<string, string>()
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: (key: string, value: string) => void saved.set(key, value),
+      removeItem: (key: string) => void saved.delete(key),
+    })
+    const pending = fakePc()
+    const r = await demoApi.uploadReceipt(photo())
+    pending[0].onStart() // Processing when the page closes
+
+    vi.resetModules() // a new page load: fresh module state, same localStorage
+    const next = await import('./demoApi')
+    try {
+      expect(await next.demoApi.getReceipt(r.id)).toMatchObject({ status: 'Failed', error: PAGE_CLOSED })
+      await expect(next.demoApi.retryReceipt(r.id)).rejects.toMatchObject({ status: 409, message: UPLOAD_AGAIN })
+    } finally {
+      next.resetDemo()
+    }
   })
 })
