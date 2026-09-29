@@ -5,9 +5,11 @@
     powershell -ExecutionPolicy Bypass -File scripts\live-demo.ps1
 
   Stops by itself after 3 hours (LiveDemo:StopAfter), or press Ctrl+C. Either way, Funnel is turned off again.
+  To try a Cloudflare preview of a branch instead of the live site (only one site may read the answers):
+    ... live-demo.ps1 -AllowedOrigin https://<branch>.receipt-tracker-demo.pages.dev
   One-time setup (Tailscale, Funnel, VITE_LIVE_URL in Cloudflare Pages): README, "Read on the author's PC".
 #>
-param([int]$Port = 5090)
+param([int]$Port = 5090, [string]$AllowedOrigin)
 
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
@@ -54,7 +56,9 @@ Write-Host "  Live demo is on at $address"
 Write-Host "  (VITE_LIVE_URL in Cloudflare Pages must be this address.) Press Ctrl+C to stop early."
 Write-Host ""
 try {
-    dotnet run --project $project -c Release --no-build --no-launch-profile -- --urls "http://localhost:$Port" --LiveDemo:Enabled=true
+    $settings = @('--urls', "http://localhost:$Port", '--LiveDemo:Enabled=true')
+    if ($AllowedOrigin) { $settings += "--LiveDemo:AllowedOrigin=$AllowedOrigin" }
+    dotnet run --project $project -c Release --no-build --no-launch-profile -- @settings
 } finally {
     & tailscale funnel --https=443 off | Out-Null
     Write-Host "Live demo stopped; Funnel is off."

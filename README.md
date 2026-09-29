@@ -136,6 +136,8 @@ One-time setup:
 powershell -ExecutionPolicy Bypass -File scripts\live-demo.ps1   # needs Ollama with the model; Ctrl+C to stop
 ```
 
+To try a Cloudflare preview of a branch (only one site may read the answers): set `VITE_LIVE_URL` for Preview builds too, and add `-AllowedOrigin https://<branch>.receipt-tracker-demo.pages.dev`.
+
 Trying it without the tunnel: run the API with `--urls http://localhost:5090 --LiveDemo:Enabled=true --LiveDemo:AllowedOrigin=http://localhost:4173`, then `VITE_LIVE_URL=http://localhost:5090 npm run build:demo` and `npx vite preview --mode demo`.
 
 **Deploying to Cloudflare Pages:** Workers & Pages → Create → Pages → Connect to Git → this repo, then: root directory `web`, build command `npm run build:demo`, build output `dist`, environment variable `NODE_VERSION` = `24`. Every push to `main` redeploys. Page routes such as `/receipts/…` work without extra setup (Pages serves `index.html` for them).
