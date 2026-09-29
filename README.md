@@ -136,6 +136,8 @@ One-time setup:
 powershell -ExecutionPolicy Bypass -File scripts\live-demo.ps1   # needs Ollama with the model; Ctrl+C to stop
 ```
 
+It starts Ollama and Tailscale if they aren't running. Or double-click `LiveDemo.exe`, which runs the script in its own window: build it once with `dotnet publish scripts/LiveDemoLauncher -o publish/live-demo` (it remembers this checkout's folder, so build it on the PC that runs the demo).
+
 To try a Cloudflare preview of a branch (only one site may read the answers): set `VITE_LIVE_URL` for Preview builds too, and add `-AllowedOrigin https://<branch>.receipt-tracker-demo.pages.dev`.
 
 Trying it without the tunnel: run the API with `--urls http://localhost:5090 --LiveDemo:Enabled=true --LiveDemo:AllowedOrigin=http://localhost:4173`, then `VITE_LIVE_URL=http://localhost:5090 npm run build:demo` and `npx vite preview --mode demo`.
@@ -267,6 +269,7 @@ docker-compose.yml         app (+ Ollama and a model download with --profile ai)
 docker-compose.nvidia.yml  / docker-compose.amd.yml: GPU for the Ollama container
 scripts/         pull-model.ps1 / pull-model.sh: download the vision model into Ollama
                  live-demo.ps1: let demo-site visitors' photos be read on this PC for a few hours
+                 LiveDemoLauncher/: LiveDemo.exe, a double-click launcher for live-demo.ps1 (not in the solution)
 src/ReceiptExtractor.Api/
   Endpoints/     HTTP endpoints (upload, status, confirm, retry, delete)
   Extraction/    Ollama client, background queue + worker
