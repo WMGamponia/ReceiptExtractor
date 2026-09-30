@@ -111,19 +111,21 @@ def field_ok(field: str, got, want) -> bool:
 
 
 def vat_check(p: dict) -> str | None:
-    """Same rule as ReceiptValidator.cs: vatable + vat + exempt = total (or = total + discount,
-    for senior citizen / PWD discounts taken off after the breakdown), and vat = 12% of vatable.
+    """Same rule as ReceiptValidator.cs: vatable + vat + exempt = total, allowing for a discount taken off
+    and a service charge added after the breakdown (either may also be inside it), and vat = 12% of vatable.
     Returns a short problem description, or None if the numbers are consistent."""
     total = p.get("total")
     vat, vatable = p.get("vat_amount") or 0, p.get("vatable_sales") or 0
     exempt, discount = p.get("vat_exempt_sales") or 0, abs(p.get("discount") or 0)
+    service = abs(p.get("service_charge") or 0)
     if total is None:
         return "no total"
     if not vat and not vatable and not exempt:
         return None  # no VAT breakdown printed, nothing to check
     breakdown = vatable + vat + exempt
-    if abs(breakdown - total) > 0.02 and not (discount and abs(breakdown - discount - total) <= 0.02):
-        return f"vatable+vat+exempt={breakdown:.2f} != total" + (f" (discount {discount:.2f})" if discount else "")
+    if not any(abs(breakdown - d + s - total) <= 0.02 for d in {0, discount} for s in {0, service}):
+        return (f"vatable+vat+exempt={breakdown:.2f} != total" + (f" (discount {discount:.2f})" if discount else "")
+                + (f" (service charge {service:.2f})" if service else ""))
     if abs(vat - round(vatable * 0.12, 2)) > 0.02:
         return f"vat != 12% of vatable ({vatable * 0.12:.2f})"
     return None

@@ -131,6 +131,24 @@ public class ReceiptValidatorTests
             CultureInfo.CurrentCulture = before;
         }
     }
+
+    [Fact]
+    public void Service_charge_on_top_of_the_breakdown_passes()
+    {
+        // Texas Roadhouse: senior discount off the breakdown, then a 10% service charge added.
+        var fields = new ReceiptFields("TEXAS ROADHOUSE", new DateOnly(2026, 8, 8), 6323.43m, 361.34m, 3011.16m, 3011.16m, 602.23m,
+            ServiceCharge: 542.01m);
+
+        Assert.Empty(ReceiptValidator.Validate(fields, Today));
+    }
+
+    [Fact]
+    public void Flag_shows_the_total_with_the_service_charge()
+    {
+        var flags = ReceiptValidator.VatFlags(total: 1300m, vat: 120m, vatable: 1000m, exempt: 0m, discount: 0m, serviceCharge: 100m);
+
+        Assert.Contains(flags, f => f.Contains("(₱1,220.00 with the ₱100.00 service charge)") && f.Contains("but total is ₱1,300.00"));
+    }
 }
 
 public class PesoTests

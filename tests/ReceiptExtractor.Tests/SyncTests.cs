@@ -32,7 +32,7 @@ public class SyncTests
         var c = VatCases().Single(x => x.GetProperty("name").GetString() == name);
 
         var flags = ReceiptValidator.VatFlags(Amount(c, "total"), Amount(c, "vat"), Amount(c, "vatable"),
-            Amount(c, "exempt"), Amount(c, "discount"));
+            Amount(c, "exempt"), Amount(c, "discount"), Amount(c, "service_charge"));
 
         Assert.Equal(c.GetProperty("problems").GetInt32(), flags.Count);
     }
