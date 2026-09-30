@@ -55,7 +55,37 @@ public sealed record ReceiptUpdate(
 /// "Re-extract with my changes": the fields named in <see cref="Locked"/> (model JSON names, e.g. "total")
 /// are taken from <see cref="Fields"/> as correct; everything else is read again by the model.
 /// </summary>
-public sealed record ReextractRequest(ReceiptUpdate? Fields, IReadOnlyList<string>? Locked);
+public sealed record ReextractRequest(ReceiptUpdate? Fields, IReadOnlyList<string>? Locked)
+{
+    /// <summary>Same rules as confirming, but only for the fields being locked. Also used by the live demo.</summary>
+    public (Corrections? Valid, Dictionary<string, string[]> Errors) Check()
+    {
+        var locked = (Locked ?? []).Distinct().ToList();
+        var errors = new Dictionary<string, string[]>();
+        if (Fields is null || locked.Count == 0)
+            errors["locked"] = ["Change at least one field to re-extract with."];
+        else if (locked.FirstOrDefault(f => !UserHints.IsKnown(f)) is { } unknown)
+            errors["locked"] = [$"Unknown field '{unknown}'. Use: {string.Join(", ", UserHints.Fields)}."];
+        if (errors.Count > 0)
+            return (null, errors);
+
+        var category = Categories.Normalize(Fields!.Category);
+        if (locked.Contains(UserHints.Total) && Fields.Total is not > 0) errors["total"] = ["Total must be more than zero."];
+        if (locked.Contains(UserHints.Category) && category is null)
+            errors["category"] = [$"Category must be one of: {string.Join(", ", Categories.All)}."];
+        if (locked.Contains(UserHints.VatExemptSales) && Fields.VatExemptSales < 0) errors["vatExemptSales"] = ["VAT-exempt sales can't be negative."];
+        if (locked.Contains(UserHints.Discount) && Fields.Discount < 0) errors["discount"] = ["Enter the discount as a positive amount."];
+        if (errors.Count > 0)
+            return (null, errors);
+
+        var user = new ReceiptFields(MerchantRules.Normalize(Fields.Merchant), Fields.Date, Fields.Total,
+            Fields.VatAmount, Fields.VatableSales, Fields.VatExemptSales, Fields.Discount);
+        return (new Corrections(locked, user, category), errors);
+    }
+}
+
+/// <summary>A valid re-extract request: the fields to keep, and the user's values for them.</summary>
+public sealed record Corrections(IReadOnlyList<string> Locked, ReceiptFields Fields, string? Category);
 
 /// <summary>Bulk confirm: accept the extracted fields of several receipts as they are.</summary>
 public sealed record BulkConfirmRequest(IReadOnlyList<Guid>? Ids);
@@ -421,31 +451,14 @@ public static class ReceiptEndpoints
         if (receipt.Status is ReceiptStatus.Queued or ReceiptStatus.Processing)
             return TypedResults.Conflict("Extraction is already running for this receipt.");
 
-        var locked = (request.Locked ?? []).Distinct().ToList();
-        var update = request.Fields;
-        var errors = new Dictionary<string, string[]>();
-        if (update is null || locked.Count == 0)
-            errors["locked"] = ["Change at least one field to re-extract with."];
-        else if (locked.FirstOrDefault(f => !UserHints.IsKnown(f)) is { } unknown)
-            errors["locked"] = [$"Unknown field '{unknown}'. Use: {string.Join(", ", UserHints.Fields)}."];
-        if (errors.Count > 0)
-            return TypedResults.ValidationProblem(errors);
-
-        // Same rules as confirming, but only for the fields being locked.
-        var category = Categories.Normalize(update!.Category);
-        if (locked.Contains(UserHints.Total) && update.Total is not > 0) errors["total"] = ["Total must be more than zero."];
-        if (locked.Contains(UserHints.Category) && category is null)
-            errors["category"] = [$"Category must be one of: {string.Join(", ", Categories.All)}."];
-        if (locked.Contains(UserHints.VatExemptSales) && update.VatExemptSales < 0) errors["vatExemptSales"] = ["VAT-exempt sales can't be negative."];
-        if (locked.Contains(UserHints.Discount) && update.Discount < 0) errors["discount"] = ["Enter the discount as a positive amount."];
-        if (errors.Count > 0)
+        var (valid, errors) = request.Check();
+        if (valid is null)
             return TypedResults.ValidationProblem(errors);
 
         // Store the user's values for the locked fields now; the worker keeps them and re-reads the rest.
-        var user = new ReceiptFields(MerchantRules.Normalize(update.Merchant), update.Date, update.Total,
-            update.VatAmount, update.VatableSales, update.VatExemptSales, update.Discount);
+        var locked = valid.Locked.ToList();
         var set = locked.ToHashSet();
-        receipt.ApplyFields(UserHints.Keep(receipt.Fields, user, set), set.Contains(UserHints.Category) ? category : receipt.Category);
+        receipt.ApplyFields(UserHints.Keep(receipt.Fields, valid.Fields, set), set.Contains(UserHints.Category) ? valid.Category : receipt.Category);
         receipt.LockedFields = locked;
         receipt.Status = ReceiptStatus.Queued;
         receipt.ConfirmedAtUtc = null; // needs confirming again once the model is done
