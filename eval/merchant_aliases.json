@@ -2,7 +2,9 @@
   "_comment": "Names in the same list are the same merchant (store name or company name both count). Matching ignores case, spaces, punctuation and Corp/Inc.",
   "Robinsons Supermarket Corporation": ["THE MARKETPLACE", "Robinsons Supermarket"],
   "DataBlitz": ["Orion Cepheid"],
-  "TEXAS ROADHOUSE": ["BISTRO ITALIANO CORP"],
+  "LAZADA": ["LAZADA Edifier"],
+  "WCSI-APMC CENTRALLE CEBU": ["WAL TER-APM CENTRALLE CEBU"],
+  "TEXAS ROADHOUSE": ["BISTRO ITALIANO CORP", "TEXAS ROADHOUSE BISTRO ITALIANO CORP"],
   "S&R MEMBERSHIP SHOPPING": ["S&R", "Kareila Management Corp", "Kareila Mgnt Corp"],
   "Pet Express": ["INTERNATIONAL TOYWORLD, INC."],
   "MANNA FOODS & BEVERAGES PHIL INC": ["Mang Inasal"]
