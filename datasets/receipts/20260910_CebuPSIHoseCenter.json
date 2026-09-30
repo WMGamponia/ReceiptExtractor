@@ -1,0 +1,12 @@
+{
+  "merchant": "Cebu PSI Hose Center",
+  "date": "2026-09-10",
+  "total": 250.00,
+  "vat_amount": 24.64,
+  "vatable_sales": 205.36,
+  "vat_exempt_sales": 0.00,
+  "discount": 0.00,
+  "service_charge": 0.00,
+  "category": "Transport",
+  "notes": "Handwritten; date 9.10.26 (first digit could be a 5). Written VAT 24.64 + VATable 205.36 = 230, not 250: the receipt's own mistake, so the VAT check should flag it."
+}

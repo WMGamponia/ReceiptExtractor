@@ -1,0 +1,12 @@
+{
+  "merchant": "S&R MEMBERSHIP SHOPPING",
+  "date": "2026-08-01",
+  "total": 1499.00,
+  "vat_amount": 160.61,
+  "vatable_sales": 1338.39,
+  "vat_exempt_sales": 0.00,
+  "discount": 0.00,
+  "service_charge": 0.00,
+  "category": "Groceries",
+  "notes": "Long receipt, small text. Date printed YY/MM/DD (26/08/01)."
+}

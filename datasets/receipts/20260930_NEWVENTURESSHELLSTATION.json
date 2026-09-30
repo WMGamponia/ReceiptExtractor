@@ -6,6 +6,7 @@
   "vatable_sales": 892.86,
   "vat_exempt_sales": 0.00,
   "discount": 0.00,
+  "service_charge": 0.00,
   "category": "Fuel",
   "notes": "Phone photo stored sideways (EXIF orientation 6). Read as-is, the model got VAT 10714 / VATable 89286."
 }

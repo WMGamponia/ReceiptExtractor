@@ -86,7 +86,7 @@ public class LabeledReceiptsTests : IDisposable
     {
         var dataBlitz = LabeledReceipts.Load(Datasets()).Single(r => r.FileName == "20251220_DataBlitz.jpg");
 
-        Assert.Equal(new ReceiptFields("DataBlitz", new DateOnly(2025, 12, 20), 10495.00m, 1124.46m, 9370.54m, 0m, 0m), dataBlitz.Fields);
+        Assert.Equal(new ReceiptFields("DataBlitz", new DateOnly(2025, 12, 20), 10495.00m, 1124.46m, 9370.54m, 0m, 0m, 0m), dataBlitz.Fields);
         Assert.Equal("Shopping", dataBlitz.Category);
     }
 
