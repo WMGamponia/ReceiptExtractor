@@ -1,5 +1,5 @@
 {
-  "key": "a5a798510c1c89e1",
+  "key": "9440853c15129c03",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "PETRON BASAK PARDO SERVICE STATION",
@@ -11,5 +11,5 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.52
+  "seconds": 9.55
 }

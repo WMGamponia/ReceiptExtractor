@@ -1,5 +1,5 @@
 {
-  "key": "645d8abf8bd5c8b5",
+  "key": "61d3bea5397c6515",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "NEW VENTURES SHELL STATION",
@@ -11,5 +11,5 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.75
+  "seconds": 9.61
 }

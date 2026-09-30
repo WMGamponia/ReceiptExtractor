@@ -1,5 +1,5 @@
 {
-  "key": "761e1c0cdc7d0f9c",
+  "key": "0e99710bcba4ecb4",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "MANGINA FOODS & BEVERAGES PHIL",
@@ -11,5 +11,5 @@
     "discount": 56.96,
     "service_charge": 0.0
   },
-  "seconds": 9.69
+  "seconds": 9.77
 }

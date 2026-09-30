@@ -1,5 +1,5 @@
 {
-  "key": "f074677f55f2c409",
+  "key": "7a1d5aa70cf32bff",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "S&R MEMBERSHIP SHOPPING",
@@ -11,5 +11,5 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.47
+  "seconds": 9.51
 }
