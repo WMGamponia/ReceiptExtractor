@@ -133,15 +133,15 @@ Before building anything, I compared two ways to pull these fields out of real r
 
 Both use the same model (`qwen3-vl:8b-instruct` via [Ollama](https://ollama.com)), prompt and JSON schema, so the only difference is *seeing the image* vs *reading OCR text*.
 
-**Results on 7 hand-labeled receipts** (AMD Radeon RX 9070 XT):
+**Results on hand-labeled receipts** (7 in the original bake-off, 8 now) (AMD Radeon RX 9070 XT):
 
 | Approach | Merchant | Date | Total | VAT | Core accuracy¹ | Median | Slowest |
 |---|---|---|---|---|---|---|---|
-| **Vision model** | 71% | 86% | 100% | 100% | **86%** ✅ | 9.0s | 16.8s |
+| **Vision model** | 75% | 88% | 100% | 100% | **88%** ✅ | 8.9s | 17.3s |
 | Tesseract + LLM | 29% | 0% | 29% | 43% | 19% ❌ | 1.5s | 2.0s |
 
 ¹ Date + merchant + total. Target: ≥ 85%, under 30s per receipt. Full breakdown: [eval/RESULTS.md](eval/RESULTS.md).
-The vision row is the latest run (2026-09-28, the current prompt: VAT-exempt sales, discount, tax tables and "Less VAT" lines; the original bake-off scored 95%). The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
+The vision row is the latest run (2026-09-30, 8 receipts, the current prompt: VAT-exempt sales, discount, tax tables, "Less VAT" lines and keeping the decimal point; the original bake-off scored 95%). The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
 
 PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, but ~85s per receipt, because PaddleOCR can't use an AMD GPU on Windows.
 
@@ -151,13 +151,15 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **One misread digit ruins a field.** `15,190` became `73,190`; `Dec 21 2025` became `Dec 24 7025`.
 - **Two kinds of error need two kinds of fix.** *Reading* errors (bad OCR) need a better OCR engine or a better photo. *Understanding* errors (e.g. picking the BIR "Date of ATP" printer-permit date instead of the transaction date) are fixed in the prompt.
 - **PH receipts have a built-in checksum.** VAT is included in the total, so `vatable sales + VAT = total` and `VAT = total × 12/112`. Checking that flagged every bad Tesseract result and none of the vision results, so the app uses it to send suspicious receipts to review.
+- **Check what the model actually sees.** A phone photo read VAT as `10714` instead of `107.14`, but the same photo sent through Discord read fine. Phones save photos sideways with an EXIF tag saying how to turn them; browsers obey it, Ollama doesn't, so the model was reading the receipt on its side. The app now turns photos upright before sending them (`Extraction/PhotoOrientation.cs`, and the same in the eval), and that receipt is in the dataset. Resizing turned out not to matter: the eval scored the same at 1536, 2048 and 4080 px.
 - **Prompts are suggestions; code is a rule.** Asking for "centavos exactly as printed" fixed dropped decimals, but the model still ignored a rule about marketplace names. Exact rules belong in code after extraction.
 
 ### Known issues
 
-- **Accuracy is one miss above the target.** Core accuracy is 86% against the 85% target, so the next prompt change that costs a field will fail CI. Teaching the model VAT-exempt sales and discounts cost some accuracy: the original bake-off scored 95%.
+- **Accuracy is one miss above the target.** Core accuracy is 88% against the 85% target, so the next prompt change that costs a field will fail CI. Teaching the model VAT-exempt sales and discounts cost some accuracy: the original bake-off scored 95%.
 - **Where it's wrong:** two merchant names (one misread, one with an extra word: "LAZADA Edifier"), one date with day and month swapped, and the VAT split on two receipts (the whole total put under VAT-exempt or VATable sales). The VAT check flags one of those. Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
-- **Small sample.** Seven receipts, none with a real discount yet. The dataset is growing toward 30–50, including handwritten sari-sari receipts.
+- **Decimal points in small VAT tables.** On a receipt with a Net / VAT / Gross table (not in the dataset yet), the model read `125.13` as `125` or `12513` depending on the image size. A prompt line ("Keep the decimal point") fixed it at every size, but a new layout could bring it back; the VAT check flags it when it does.
+- **Small sample.** Eight receipts, none with a real discount yet. The dataset is growing toward 30–50, including handwritten sari-sari receipts.
 
 ## For developers
 
@@ -292,7 +294,7 @@ scripts/         pull-model.ps1 / pull-model.sh: download the vision model into 
                  LiveDemoLauncher/: LiveDemo.exe, a double-click launcher for live-demo.ps1 (not in the solution)
 src/ReceiptExtractor.Api/
   Endpoints/     HTTP endpoints (upload, status, confirm, retry, delete)
-  Extraction/    Ollama client, background queue + worker
+  Extraction/    Ollama client (turns sideways photos upright first), background queue + worker
   Validation/    VAT math, date checks, merchant clean-up
   Data/          EF Core entity + DbContext (SQLite)
   Summaries/     period math (ISO weeks, calendar quarters) + GET /api/summary
@@ -319,6 +321,7 @@ eval/
   compare_approaches.py    vision vs Tesseract vs PaddleOCR on one receipt
   run_eval.py              score every approach on every receipt (--offline: from model_outputs/, for CI)
   test_scoring.py          tests for the scoring rules
+  test_upright.py          tests for turning sideways photos upright (needs Pillow)
   model_outputs/           extracted fields per receipt (committed; no OCR text)
   make_demo_receipts.py    synthetic receipts for the demo site, read by the real app
   merchant_aliases.json    store name ↔ company name equivalents
