@@ -51,6 +51,8 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         - vat_exempt_sales: the "VAT-Exempt Sales" line; 0 if the receipt has none
         - discount: all discounts on the receipt added up (senior citizen, PWD, promo, etc.),
           as a positive number; 0 if there are none. "Less VAT" lines are not discounts
+        - service_charge: the service charge line (often 10% at restaurants), as a positive
+          number; 0 if there is none. Tips are not a service charge
         - category: the best fit of:
           Food (restaurants, fast food, cafes, carinderia),
           Groceries (supermarkets, sari-sari stores, public markets),
@@ -80,10 +82,11 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             "vatable_sales": { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "vat_exempt_sales": { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "discount":      { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
+            "service_charge": { "anyOf": [ { "type": "number" }, { "type": "null" } ] },
             "category":      { "type": "string",
                                "enum": [ "Food", "Groceries", "Transport", "Fuel", "Health", "Utilities", "Shopping", "Other" ] }
           },
-          "required": [ "merchant", "date", "total", "vat_amount", "vatable_sales", "vat_exempt_sales", "discount", "category" ]
+          "required": [ "merchant", "date", "total", "vat_amount", "vatable_sales", "vat_exempt_sales", "discount", "service_charge", "category" ]
         }
         """).RootElement.Clone();
 
@@ -176,7 +179,8 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             Money(model.VatAmount),
             Money(model.VatableSales),
             Money(model.VatExemptSales),
-            PositiveMoney(model.Discount));
+            PositiveMoney(model.Discount),
+            PositiveMoney(model.ServiceCharge));
 
         return new ExtractionResult(fields, Categories.Normalize(model.Category), json);
     }
@@ -184,7 +188,7 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
     private static decimal? Money(decimal? value) =>
         value is { } v ? Math.Round(v, 2, MidpointRounding.AwayFromZero) : null;
 
-    /// <summary>Discounts are often printed as "-20.00"; we store them as positive amounts.</summary>
+    /// <summary>Discounts are often printed as "-20.00" (and a model may sign a charge too); we store them as positive amounts.</summary>
     private static decimal? PositiveMoney(decimal? value) => Money(value) is { } v ? Math.Abs(v) : null;
 
     private sealed class ModelReceipt
@@ -196,6 +200,7 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         [JsonPropertyName("vatable_sales")] public decimal? VatableSales { get; set; }
         [JsonPropertyName("vat_exempt_sales")] public decimal? VatExemptSales { get; set; }
         [JsonPropertyName("discount")] public decimal? Discount { get; set; }
+        [JsonPropertyName("service_charge")] public decimal? ServiceCharge { get; set; }
         [JsonPropertyName("category")] public string? Category { get; set; }
     }
 

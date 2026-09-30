@@ -35,6 +35,7 @@ class Receipt(BaseModel):
     vatable_sales: float | None = Field(description="VATable sales in PHP; 0 if non-VAT")
     vat_exempt_sales: float | None = Field(description="VAT-exempt sales in PHP; 0 if none")
     discount: float | None = Field(description="All discounts added up, positive, in PHP; 0 if none")
+    service_charge: float | None = Field(description="Service charge in PHP, positive; 0 if none (tips are not)")
 
 
 # 2. The instructions. Same prompt for every receipt, so results are comparable.
@@ -52,6 +53,8 @@ Extract these fields:
 - vat_exempt_sales: the "VAT-Exempt Sales" line; 0 if the receipt has none
 - discount: all discounts on the receipt added up (senior citizen, PWD, promo, etc.),
   as a positive number; 0 if there are none. "Less VAT" lines are not discounts
+- service_charge: the service charge line (often 10% at restaurants), as a positive
+  number; 0 if there is none. Tips are not a service charge
 Some receipts print the VAT breakdown as a tax table (Tax Code / RATE / Amount / TAX amt)
 instead of labeled lines: the V (12%) row's Amount is vatable_sales and its TAX is vat_amount,
 and the E (0%) row's Amount is vat_exempt_sales.
