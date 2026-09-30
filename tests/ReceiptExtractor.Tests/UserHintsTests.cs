@@ -1,3 +1,4 @@
+using ReceiptExtractor.Api.Endpoints;
 using ReceiptExtractor.Api.Extraction;
 using ReceiptExtractor.Api.Validation;
 
@@ -62,5 +63,16 @@ public class UserHintsTests
 
         Assert.Equal(new[] { new FieldHint("service_charge", "100.00") }, UserHints.Describe(user, null, ["service_charge"]));
         Assert.Equal(100m, UserHints.Keep(model, user, new HashSet<string> { "service_charge" }).ServiceCharge);
+    }
+
+    [Fact]
+    public void Re_extract_rejects_a_negative_service_charge()
+    {
+        var update = new ReceiptUpdate("X", new DateOnly(2026, 8, 8), 1220m, 120m, 1000m, null, null, "Food", ServiceCharge: -100m);
+
+        var (valid, errors) = new ReextractRequest(update, ["service_charge"]).Check();
+
+        Assert.Null(valid);
+        Assert.Equal(new[] { "Enter the service charge as a positive amount." }, errors["serviceCharge"]);
     }
 }
