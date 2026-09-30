@@ -1,0 +1,14 @@
+{
+  "key": "d29120e124552698",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "NEW VENTURES SHELL STATION",
+    "date": "2026-09-30",
+    "total": 1000.0,
+    "vat_amount": 107.14,
+    "vatable_sales": 892.86,
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0
+  },
+  "seconds": 17.67
+}

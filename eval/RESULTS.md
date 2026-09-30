@@ -1,10 +1,10 @@
 # Extraction bake-off results
 
-2026-09-28 · model `qwen3-vl:8b-instruct` · 7 receipts
+2026-09-30 · model `qwen3-vl:8b-instruct` · 8 receipts
 
 | Approach | merchant | date | total | vat_amount | vatable_sales | vat_exempt_sales | discount | Core (date, merchant, total) | Median s | Slowest s | VAT-check flags |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| vision | 71% | 86% | 100% | 100% | 86% | 86% | 100% | 86% ✅ | 9.0 | 16.8 ✅ | 1 |
+| vision | 75% | 88% | 100% | 100% | 88% | 88% | 100% | 88% ✅ | 8.9 | 17.7 ✅ | 1 |
 
 Targets from SCOPE.md: core accuracy ≥ 85%, under 30s per receipt.
 VAT-check flags = results whose VAT breakdown doesn't add up (would be sent to review).
