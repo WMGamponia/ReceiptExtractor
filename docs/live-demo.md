@@ -8,7 +8,7 @@ How the demo site at **https://receipt-tracker-demo.pages.dev** is built and dep
 
 - **Made-up data only.** 40 confirmed receipts over the past year fill the Spending page, dated relative to today so it never looks stale. Everything a visitor does stays in their browser (`localStorage`); **Reset demo** starts over.
 - **Real model answers on synthetic receipts.** Real receipt photos are personal data, so they never go on the demo. `eval/make_demo_receipts.py` draws five made-up PH receipts (made-up stores, TIN `000-000-000-000`: a carinderia, a supermarket with a VAT tax table, a pharmacy with a senior citizen discount, a tilted and faded gas-station slip, a non-VAT sari-sari store) and has the real app read them with `qwen3-vl:8b-instruct`. On **Add**, picking one replays the model's actual answer after the time it really took, mistakes included: it reads the pharmacy's `08/09/2026` as September 8 (day and month swapped) and files the sari-sari store under Food.
-- Uploading your own photo explains that reading receipts needs the model on your own computer, **unless the live demo is on** (below). **Re-extract** always does.
+- Uploading your own photo explains that reading receipts needs the model on your own computer, **unless the live demo is on** (below); so does **Re-extract**.
 
 How it works: `src/api.ts` exports `demoApi` (`src/demo/`) instead of the HTTP client when built with `--mode demo`. It mirrors the API's rules (validation, checks, bulk confirm, corrections) and ports the summary periods and CSV export to TypeScript; the normal build contains none of it.
 
@@ -31,6 +31,7 @@ While I run `scripts/live-demo.ps1`, visitors' **own** photos are read by the re
 - **Nothing is kept.** The API starts in a separate, minimal mode (`--LiveDemo:Enabled=true`, `src/ReceiptExtractor.Api/LiveDemo/`) that registers no database and no storage: two endpoints (`GET /api/live`, `POST /api/extract`), the photo read in memory and dropped. Logs have size, time and outcome only. My real app (port 5080) and Ollama are never exposed.
 - **Limits:** photos up to 15 MB (bigger uploads are cut off unread), one photo at a time on the GPU (3 more may wait), 20 per visitor an hour, 100 per run, 2 minutes per photo, and it stops itself after 3 hours. Only `receipt-tracker-demo.pages.dev` may read the answers (CORS).
 - **In the browser:** `web/src/demo/liveReader.ts` checks whether the PC is on (`VITE_LIVE_URL`), sends photos one at a time, and turns errors into plain messages. Samples always replay their recorded answers.
+- **Re-extract** works on a visitor's own photo while it's still open in the page: it's sent again with the corrected fields (an optional `hints` form field, the same `{ "fields", "locked" }` as `/api/receipts/{id}/reextract`, checked by the same rules). The model is told they're correct and they come back unchanged. Sample receipts still need the model on your own computer.
 
 One-time setup:
 1. Install [Tailscale](https://tailscale.com/download) and sign in.

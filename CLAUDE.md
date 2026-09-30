@@ -15,7 +15,8 @@ Keep ROADMAP.md checkboxes in sync too.
 - Merchant: store name or company name both count; equivalents in `eval/merchant_aliases.json`.
 - Backend: ASP.NET Core (.NET 10) minimal APIs in `src/ReceiptExtractor.Api`, EF Core + SQLite, xUnit tests in `tests/`.
   The extraction prompt lives in both `OllamaExtractor.Prompt` and `eval/try_vision.py` — keep them in sync.
-  (User hints for "re-extract with my changes" are appended at runtime by `Extraction/UserHints.cs`; API only.)
+  (User hints for "re-extract with my changes" are appended at runtime by `Extraction/UserHints.cs`; API and the live
+  demo's `hints` form field only. `ReextractRequest.Check` holds the rules for both.)
 - Frontend: React + TypeScript + Vite PWA in `web/`; dev server proxies `/api` to the API on :5036.
   VAT checks exist in both `ReceiptValidator.cs` and `web/src/format.ts` — keep them in sync.
   Demo site (`npm run build:demo`, Cloudflare Pages): `web/src/demo/demoApi.ts` stands in for the API in the browser;
