@@ -109,7 +109,12 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             options = new { temperature = 0, num_ctx = opts.ContextLength }, // same input -> same output
             messages = new[]
             {
-                new { role = "user", content = Prompt + UserHints.Prompt(hints), images = new[] { Convert.ToBase64String(image) } },
+                new
+                {
+                    role = "user",
+                    content = Prompt + UserHints.Prompt(hints),
+                    images = new[] { Convert.ToBase64String(PhotoOrientation.Upright(image)) },
+                },
             },
         };
 

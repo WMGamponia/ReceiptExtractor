@@ -59,11 +59,26 @@ Amounts are in PHP. Numbers only, no commas or peso signs.
 Use null if a field is unreadable."""
 
 
+def upright(image_path: Path) -> bytes:
+    """Phones save photos sideways plus an EXIF tag saying how to turn them; Ollama ignores the tag, so the
+    model would read the receipt on its side. Same as PhotoOrientation.cs in the app."""
+    from PIL import Image, ImageOps  # imported here: CI scores saved outputs without Pillow installed
+    import io
+
+    data = image_path.read_bytes()
+    with Image.open(io.BytesIO(data)) as im:
+        if im.getexif().get(0x0112, 1) == 1:  # 0x0112 = Orientation; 1 = already upright
+            return data
+        out = io.BytesIO()
+        ImageOps.exif_transpose(im).convert("RGB").save(out, "JPEG", quality=92)
+        return out.getvalue()
+
+
 def extract(image_path: Path, model: str) -> tuple[Receipt, float]:
     start = time.perf_counter()
     resp = ollama.chat(
         model=model,
-        messages=[{"role": "user", "content": PROMPT, "images": [str(image_path)]}],
+        messages=[{"role": "user", "content": PROMPT, "images": [upright(image_path)]}],
         format=Receipt.model_json_schema(),  # force the JSON shape
         think=False,                         # skip "thinking" mode; answer directly
         options={

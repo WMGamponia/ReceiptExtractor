@@ -14,6 +14,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.*" />
+    <!-- Turns sideways phone photos upright (Extraction/PhotoOrientation.cs). SkiaSharp brings the Windows native
+         library; the Linux one (for Docker) is a separate package. -->
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +34,13 @@
     <ItemGroup>
       <ResolvedFileToPublish Update="@(ResolvedFileToPublish)" ExcludeFromSingleFile="false"
                              Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('wwwroot')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('appsettings'))" />
+    </ItemGroup>
+  </Target>
+
+  <!-- SkiaSharp's package ships a 96 MB libSkiaSharp.pdb that DebugType=none doesn't cover; it'd sit next to the exe. -->
+  <Target Name="DropNativePdbs" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(PublishSingleFile)' == 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.pdb'" />
     </ItemGroup>
   </Target>
 
