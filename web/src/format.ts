@@ -150,13 +150,14 @@ export function vatComplement(a: Amounts, known: 'vat' | 'vatable'): number | nu
 }
 
 /**
- * PH VAT is included in the total: VATable sales × 1.12 = total − VAT-exempt sales. Splits the total that way
- * when the receipt's VAT lines are missing or unreadable. VAT is whatever is left after rounding VATable sales,
- * so the two always add up exactly. Null when there's no usable total.
+ * PH VAT is included in the total: VATable sales × 1.12 = total − VAT-exempt sales − service charge (restaurants
+ * usually add it after the breakdown). Splits the total that way when the receipt's VAT lines are missing or
+ * unreadable. VAT is whatever is left after rounding VATable sales, so the two always add up exactly. Null when
+ * there's no usable total.
  */
 export function vatFromTotal(a: Amounts): { vat: number; vatable: number } | null {
-  if (a.total == null || Number.isNaN(a.total) || Number.isNaN(a.exempt ?? 0)) return null
-  const base = a.total - num(a.exempt)
+  if (a.total == null || Number.isNaN(a.total) || Number.isNaN(a.exempt ?? 0) || Number.isNaN(a.serviceCharge ?? 0)) return null
+  const base = a.total - num(a.exempt) - num(a.serviceCharge ?? null)
   if (base <= 0) return null
   const vatable = round2(base / (1 + VAT_RATE))
   return { vat: round2(base - vatable), vatable }

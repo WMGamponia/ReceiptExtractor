@@ -120,6 +120,8 @@ describe('vatFromTotal (12% VAT included in the total)', () => {
   })
   it('leaves VAT-exempt sales out of the split', () =>
     expect(vatFromTotal(amounts(612, null, null, 500))).toEqual({ vat: 12, vatable: 100 }))
+  it('leaves out a service charge added on top', () =>
+    expect(vatFromTotal({ ...amounts(1220, null, null), serviceCharge: 100 })).toEqual({ vat: 120, vatable: 1000 }))
   it('needs a total', () => expect(vatFromTotal(amounts(null, null, null))).toBeNull())
   it('rejects junk', () => expect(vatFromTotal(amounts(NaN, null, null))).toBeNull())
   it('needs something left after exempt sales', () => expect(vatFromTotal(amounts(500, null, null, 500))).toBeNull())
