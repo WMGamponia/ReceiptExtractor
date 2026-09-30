@@ -137,7 +137,7 @@ Both use the same model (`qwen3-vl:8b-instruct` via [Ollama](https://ollama.com)
 
 | Approach | Merchant | Date | Total | VAT | Core accuracy¹ | Median | Slowest |
 |---|---|---|---|---|---|---|---|
-| **Vision model** | 75% | 88% | 100% | 100% | **88%** ✅ | 8.9s | 17.3s |
+| **Vision model** | 75% | 88% | 100% | 100% | **88%** ✅ | 8.9s | 17.7s |
 | Tesseract + LLM | 29% | 0% | 29% | 43% | 19% ❌ | 1.5s | 2.0s |
 
 ¹ Date + merchant + total. Target: ≥ 85%, under 30s per receipt. Full breakdown: [eval/RESULTS.md](eval/RESULTS.md).
@@ -151,7 +151,7 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **One misread digit ruins a field.** `15,190` became `73,190`; `Dec 21 2025` became `Dec 24 7025`.
 - **Two kinds of error need two kinds of fix.** *Reading* errors (bad OCR) need a better OCR engine or a better photo. *Understanding* errors (e.g. picking the BIR "Date of ATP" printer-permit date instead of the transaction date) are fixed in the prompt.
 - **PH receipts have a built-in checksum.** VAT is included in the total, so `vatable sales + VAT = total` and `VAT = total × 12/112`. Checking that flagged every bad Tesseract result and none of the vision results, so the app uses it to send suspicious receipts to review.
-- **Check what the model actually sees.** A phone photo read VAT as `10714` instead of `107.14`, but the same photo sent through Discord read fine. Phones save photos sideways with an EXIF tag saying how to turn them; browsers obey it, Ollama doesn't, so the model was reading the receipt on its side. The app now turns photos upright before sending them (`Extraction/PhotoOrientation.cs`, and the same in the eval), and that receipt is in the dataset. Resizing turned out not to matter: the eval scored the same at 1536, 2048 and 4080 px.
+- **Check what the model actually sees.** A phone photo read VAT as `10714` instead of `107.14`, but the same photo sent through Discord read fine. Phones save photos sideways with an EXIF tag saying how to turn them; browsers obey it, Ollama doesn't, so the model was reading the receipt on its side. The app now turns photos upright before sending them (`Extraction/PhotoOrientation.cs`, and the same in the eval), and that receipt is in the dataset. Its photo also carried the phone's GPS location, so dataset photos are now stripped of metadata (`eval/photo_metadata.py`) and a test fails on any with a location. Resizing turned out not to matter: the eval scored the same at 1536, 2048 and 4080 px.
 - **Prompts are suggestions; code is a rule.** Asking for "centavos exactly as printed" fixed dropped decimals, but the model still ignored a rule about marketplace names. Exact rules belong in code after extraction.
 
 ### Known issues
@@ -322,6 +322,8 @@ eval/
   run_eval.py              score every approach on every receipt (--offline: from model_outputs/, for CI)
   test_scoring.py          tests for the scoring rules
   test_upright.py          tests for turning sideways photos upright (needs Pillow)
+  photo_metadata.py        strips GPS and other metadata from dataset photos (keeps the orientation)
+  test_photo_metadata.py   fails if a dataset photo has a GPS location
   model_outputs/           extracted fields per receipt (committed; no OCR text)
   make_demo_receipts.py    synthetic receipts for the demo site, read by the real app
   merchant_aliases.json    store name ↔ company name equivalents

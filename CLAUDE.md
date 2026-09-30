@@ -37,6 +37,8 @@ Keep ROADMAP.md checkboxes in sync too.
 - DB is created with `EnsureCreated()` (no migrations yet): when adding a column to the entity, also add it to
   `Data/SchemaPatches.cs` so existing `receipts.db` files get it (other schema changes still need the DB deleted).
 - Windows dev machine, Visual Studio, Python venv in `.venv`, AMD Radeon GPU (PaddleOCR can't use it).
+- New dataset photos: run `python eval/photo_metadata.py strip <photo>` first (phone photos carry GPS;
+  `eval/test_photo_metadata.py` fails otherwise), then re-run the eval.
 - Never commit `eval/preds/` (contains receipt OCR text incl. TINs). `eval/model_outputs/` (fields only) IS committed:
   after changing the prompt, re-run `python eval/run_eval.py --only vision` and commit it, or CI fails.
 - CI (`.github/workflows/ci.yml`) fails if eval core accuracy < 85%. VAT check cases shared by C#/TS/Python: `tests/vat-cases.json`;
