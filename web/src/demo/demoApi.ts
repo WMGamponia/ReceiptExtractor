@@ -134,6 +134,7 @@ function blank(imageUrl: string, originalFileName: string, uploadedAtUtc: string
     vatableSales: null,
     vatExemptSales: null,
     discount: null,
+    serviceCharge: null,
     category: null,
     flags: [],
     corrections: [],
@@ -156,6 +157,7 @@ const answerFields = (a: Answer): ReceiptUpdate => ({
   vatableSales: a.vatableSales,
   vatExemptSales: a.vatExemptSales,
   discount: a.discount,
+  serviceCharge: a.serviceCharge,
   category: a.category,
 })
 
@@ -175,7 +177,9 @@ function finish<T extends DemoReceipt>(r: T): T {
 }
 
 /** Same checks as ReceiptValidator.Validate (the VAT part is vatWarnings, which mirrors it). */
-function checks(r: Pick<Receipt, 'total' | 'date' | 'vatAmount' | 'vatableSales' | 'vatExemptSales' | 'discount'>): string[] {
+function checks(
+  r: Pick<Receipt, 'total' | 'date' | 'vatAmount' | 'vatableSales' | 'vatExemptSales' | 'discount' | 'serviceCharge'>,
+): string[] {
   const flags: string[] = []
   if (r.total == null) flags.push('Total is missing.')
   else if (r.total <= 0) flags.push('Total must be more than zero.')
@@ -183,7 +187,10 @@ function checks(r: Pick<Receipt, 'total' | 'date' | 'vatAmount' | 'vatableSales'
   else if (r.date > todayIso()) flags.push(`Date ${r.date} is in the future.`)
   if (r.total != null)
     flags.push(
-      ...vatWarnings({ total: r.total, vat: r.vatAmount, vatable: r.vatableSales, exempt: r.vatExemptSales, discount: r.discount }),
+      ...vatWarnings({
+        total: r.total, vat: r.vatAmount, vatable: r.vatableSales, exempt: r.vatExemptSales, discount: r.discount,
+        serviceCharge: r.serviceCharge,
+      }),
     )
   return flags
 }
@@ -204,6 +211,7 @@ function corrections(model: ReceiptUpdate | undefined, confirmed: ReceiptUpdate)
   compare('vatable_sales', model.vatableSales ?? 0, confirmed.vatableSales ?? 0, money)
   compare('vat_exempt_sales', model.vatExemptSales ?? 0, confirmed.vatExemptSales ?? 0, money)
   compare('discount', model.discount ?? 0, confirmed.discount ?? 0, money)
+  compare('service_charge', model.serviceCharge ?? 0, confirmed.serviceCharge ?? 0, money)
   compare('category', model.category, confirmed.category, text)
   return changes
 }
@@ -267,6 +275,7 @@ const FIELD_OF: Record<LockableField, keyof ReceiptUpdate> = {
   vatable_sales: 'vatableSales',
   vat_exempt_sales: 'vatExemptSales',
   discount: 'discount',
+  service_charge: 'serviceCharge',
   category: 'category',
 }
 
@@ -328,6 +337,7 @@ export const demoApi = {
       if (!category) errors.category = [`Category must be one of: ${CATEGORIES.join(', ')}.`]
       if ((update.vatExemptSales ?? 0) < 0) errors.vatExemptSales = ["VAT-exempt sales can't be negative."]
       if ((update.discount ?? 0) < 0) errors.discount = ['Enter the discount as a positive amount.']
+      if ((update.serviceCharge ?? 0) < 0) errors.serviceCharge = ['Enter the service charge as a positive amount.']
       if (Object.keys(errors).length > 0) throw new ApiError(400, 'One or more validation errors occurred.', errors)
 
       // Only the editable fields, whatever else the caller's object carries (like the API's ReceiptUpdate DTO).
@@ -339,6 +349,7 @@ export const demoApi = {
         vatableSales: update.vatableSales,
         vatExemptSales: update.vatExemptSales,
         discount: update.discount,
+        serviceCharge: update.serviceCharge,
         category,
       }
       r.corrections = corrections(r.model, fields)
@@ -427,6 +438,8 @@ export const demoApi = {
       if (keep.includes('category') && !category) errors.category = [`Category must be one of: ${CATEGORIES.join(', ')}.`]
       if (keep.includes('vat_exempt_sales') && (update.vatExemptSales ?? 0) < 0) errors.vatExemptSales = ["VAT-exempt sales can't be negative."]
       if (keep.includes('discount') && (update.discount ?? 0) < 0) errors.discount = ['Enter the discount as a positive amount.']
+      if (keep.includes('service_charge') && (update.serviceCharge ?? 0) < 0)
+        errors.serviceCharge = ['Enter the service charge as a positive amount.']
       if (Object.keys(errors).length > 0) throw new ApiError(400, 'One or more validation errors occurred.', errors)
 
       // The visitor's values for the kept fields show right away; the PC keeps them and re-reads the rest.

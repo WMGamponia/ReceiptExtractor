@@ -32,7 +32,7 @@ describe('periodFor (mirrors PeriodRangeTests.cs)', () => {
 
 const receipt = (over: Partial<Receipt>): Receipt => ({
   id: crypto.randomUUID(), name: '', status: 'Confirmed', merchant: 'DataBlitz', date: '2025-12-20', total: 100,
-  vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, category: 'Shopping', flags: [],
+  vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, serviceCharge: null, category: 'Shopping', flags: [],
   corrections: [], extractionSeconds: null, error: null, originalFileName: 'x.jpg', uploadedAtUtc: '', confirmedAtUtc: null,
   imageUrl: '', ...over,
 })
@@ -65,12 +65,12 @@ describe('summarize (mirrors SummaryEndpoints.cs)', () => {
 describe('receiptsCsv (mirrors ReceiptCsvTests.cs)', () => {
   it('writes an Excel-friendly row', () =>
     expect(receiptsCsv([receipt({ total: 10495, vatAmount: 1124.46, vatableSales: 9370.54, name: '2025-12-20_DataBlitz' })])).toBe(
-      'Date,Merchant,Category,Total,VAT,VATable sales,VAT-exempt sales,Discount,Receipt\r\n' +
-        '20251220,DataBlitz,Shopping,10495.00,1124.46,9370.54,,,2025-12-20_DataBlitz\r\n',
+      'Date,Merchant,Category,Total,VAT,VATable sales,VAT-exempt sales,Discount,Service charge,Receipt\r\n' +
+        '20251220,DataBlitz,Shopping,10495.00,1124.46,9370.54,,,,2025-12-20_DataBlitz\r\n',
     ))
   it('quotes commas and stops formulas', () =>
     expect(receiptsCsv([receipt({ merchant: '=HYPERLINK("x")', name: 'a, b' })]).split('\r\n')[1]).toBe(
-      '20251220,"\'=HYPERLINK(""x"")",Shopping,100.00,,,,,"a, b"',
+      '20251220,"\'=HYPERLINK(""x"")",Shopping,100.00,,,,,,"a, b"',
     ))
 })
 
@@ -84,7 +84,7 @@ describe('sampleReceipts (like Seeding/SampleReceipts.cs)', () => {
     expect(new Set(samples.map((r) => r.category)).size).toBe(8)
   })
   it('all pass the VAT check', () =>
-    expect(samples.flatMap((r) => vatWarnings({ total: r.total, vat: r.vatAmount, vatable: r.vatableSales, exempt: r.vatExemptSales, discount: r.discount }))).toEqual([]))
+    expect(samples.flatMap((r) => vatWarnings({ total: r.total, vat: r.vatAmount, vatable: r.vatableSales, exempt: r.vatExemptSales, discount: r.discount, serviceCharge: r.serviceCharge }))).toEqual([]))
   it('are the same every time', () => expect(sampleReceipts(today)).toEqual(samples))
 })
 
@@ -121,6 +121,23 @@ describe('demoApi', () => {
     expect(saved.corrections).toEqual(['vat_amount: ₱120.00 → ₱0.00'])
   })
 
+  it('checks the service charge like the API', async () => {
+    const r = (await demoApi.listReceipts())[0]
+    await expect(demoApi.confirmReceipt(r.id, { ...r, serviceCharge: -1 })).rejects.toMatchObject({
+      status: 400,
+      fieldErrors: { serviceCharge: ['Enter the service charge as a positive amount.'] },
+    })
+  })
+
+  it('does not flag a service charge on top of the breakdown', async () => {
+    const r = (await demoApi.listReceipts())[0]
+    const saved = await demoApi.confirmReceipt(r.id, {
+      ...r, date: '2026-08-08', category: 'Food', total: 1220, vatAmount: 120, vatableSales: 1000, vatExemptSales: 0, discount: 0, serviceCharge: 100,
+    })
+    expect(saved.flags).toEqual([])
+    expect(saved.serviceCharge).toBe(100)
+  })
+
   it('checks required fields like the API', async () => {
     const r = (await demoApi.listReceipts())[0]
     await expect(demoApi.confirmReceipt(r.id, { ...r, total: null })).rejects.toMatchObject({
@@ -143,7 +160,7 @@ describe('demoApi', () => {
 
 describe('demoApi with the live demo', () => {
   const READING: LiveAnswer = {
-    fields: { merchant: 'Kusina ni Aling Rosa', date: '2026-09-01', total: 250, vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, category: 'Food' },
+    fields: { merchant: 'Kusina ni Aling Rosa', date: '2026-09-01', total: 250, vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, serviceCharge: null, category: 'Food' },
     extractionSeconds: 12.5,
   }
   const photo = () => new File(['x'], 'mine.jpg', { type: 'image/jpeg' })
@@ -267,6 +284,15 @@ describe('demoApi with the live demo', () => {
     })
     await expect(demoApi.reextractReceipt(r.id, r, [])).rejects.toMatchObject({ status: 400 })
     expect(pending).toHaveLength(1)
+  })
+
+  it('Re-extract rejects a negative service charge', async () => {
+    const { r } = await readPhoto()
+
+    await expect(demoApi.reextractReceipt(r.id, { ...r, serviceCharge: -1 }, ['service_charge'])).rejects.toMatchObject({
+      status: 400,
+      fieldErrors: { serviceCharge: ['Enter the service charge as a positive amount.'] },
+    })
   })
 
   it('Re-extract needs the PC to be on', async () => {

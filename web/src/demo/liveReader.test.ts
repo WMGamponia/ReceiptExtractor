@@ -4,7 +4,7 @@ import { createLiveReader, WENT_OFFLINE } from './liveReader'
 const BASE = 'https://receipt-demo.tail1234.ts.net'
 const STATUS = { model: 'qwen3-vl:8b-instruct', perVisitorPerHour: 20 }
 const READING = {
-  fields: { merchant: 'Kusina ni Aling Rosa', date: '2026-09-01', total: 250, vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null },
+  fields: { merchant: 'Kusina ni Aling Rosa', date: '2026-09-01', total: 250, vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, serviceCharge: null },
   category: 'Food',
   extractionSeconds: 12.5,
 }
