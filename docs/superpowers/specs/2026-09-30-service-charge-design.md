@@ -40,8 +40,8 @@ New: it adds up if `breakdown − d + s = total` for some `d ∈ {0, discount}` 
 
 The flag message names what was tried, e.g.
 "VATable sales + VAT + VAT-exempt sales = ₱6,383.66 (₱5,781.43 after the ₱602.23 discount, ₱6,323.44 with the
-₱542.01 service charge), but total is ₱6,300.00." The exact wording is settled in the plan; it must stay identical
-between C# and TS (the shared cases compare flag counts, not text).
+₱542.01 service charge), but total is ₱6,300.00." C# and TS word this flag the same way (their 12% VAT flags
+already differ in wording; the shared cases compare flag counts, not text).
 
 Where it lives (all three must agree; `tests/vat-cases.json` enforces it):
 - `ReceiptValidator.VatFlags` (C#)
