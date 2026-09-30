@@ -55,6 +55,18 @@ describe('createLiveReader', () => {
     expect(url).toBe(`${BASE}/api/extract`)
     expect(init?.method).toBe('POST')
     expect((init!.body as FormData).get('file')).toBeInstanceOf(File)
+    expect((init!.body as FormData).has('hints')).toBe(false)
+  })
+
+  it('sends the corrected fields for Re-extract', async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () => json(200, READING))
+    const hints = { fields: { ...READING.fields, total: 260, category: 'Food' }, locked: ['total' as const] }
+
+    await createLiveReader(BASE, fetchFn)!.read(photo(), () => true, hints)
+
+    const body = fetchFn.mock.calls[0][1]!.body as FormData
+    expect(JSON.parse(body.get('hints') as string)).toEqual(hints)
+    expect(body.get('file')).toBeInstanceOf(File)
   })
 
   it('sends photos one at a time', async () => {

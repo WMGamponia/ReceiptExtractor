@@ -16,7 +16,7 @@ import {
 } from '../api'
 import { formatPeso, todayIso, vatWarnings } from '../format'
 import { csvDataUrl, receiptsCsv } from './csv'
-import { createLiveReader, type LiveReader, type LiveStatus } from './liveReader'
+import { createLiveReader, type LiveHints, type LiveReader, type LiveStatus } from './liveReader'
 import modelAnswers from './model-answers.json'
 import { summarize } from './periods'
 import { sampleReceipts } from './sampleReceipts'
@@ -222,7 +222,7 @@ function tick() {
 }
 
 /** Sends a visitor's photo to the author's PC: Queued → Processing → Extracted / NeedsReview, or Failed. */
-function startLiveRead(reader: LiveReader, id: string, file: File) {
+function startLiveRead(reader: LiveReader, id: string, file: File, hints?: LiveHints) {
   const current = () => load().find((x) => x.id === id) // gone if deleted, or the demo was reset, meanwhile
   reader
     .read(file, () => {
@@ -231,12 +231,13 @@ function startLiveRead(reader: LiveReader, id: string, file: File) {
       r.status = 'Processing'
       save()
       return true
-    })
+    }, hints)
     .then(
       (answer) => {
         const r = current()
         if (!answer || !r) return
-        r.model = answer.fields // to list the visitor's corrections later
+        // To list the visitor's corrections later: the first, unaided answer (like ExtractionWorker).
+        if (!hints || !r.model) r.model = answer.fields
         applyAnswer(r, answer.fields, answer.extractionSeconds)
         save()
       },
@@ -256,6 +257,20 @@ function find(id: string): DemoReceipt {
   if (!r) throw new ApiError(404, 'Request failed (404)')
   return r
 }
+
+/** Re-extract's field names (the model's JSON) → the receipt's. */
+const FIELD_OF: Record<LockableField, keyof ReceiptUpdate> = {
+  merchant: 'merchant',
+  date: 'date',
+  total: 'total',
+  vat_amount: 'vatAmount',
+  vatable_sales: 'vatableSales',
+  vat_exempt_sales: 'vatExemptSales',
+  discount: 'discount',
+  category: 'category',
+}
+
+const normalizeCategory = (c: string | null) => CATEGORIES.find((x) => x.toLowerCase() === c?.trim().toLowerCase()) ?? null
 
 const publicCopy = ({ model: _model, readyAt: _readyAt, live: _live, ...r }: DemoReceipt): Receipt => ({ ...r })
 
@@ -309,7 +324,7 @@ export const demoApi = {
       const errors: Record<string, string[]> = {}
       if (!update.date) errors.date = ['Date is required.']
       if (!(update.total != null && update.total > 0)) errors.total = ['Total is required and must be more than zero.']
-      const category = CATEGORIES.find((c) => c.toLowerCase() === update.category?.trim().toLowerCase()) ?? null
+      const category = normalizeCategory(update.category)
       if (!category) errors.category = [`Category must be one of: ${CATEGORIES.join(', ')}.`]
       if ((update.vatExemptSales ?? 0) < 0) errors.vatExemptSales = ["VAT-exempt sales can't be negative."]
       if ((update.discount ?? 0) < 0) errors.discount = ['Enter the discount as a positive amount.']
@@ -392,9 +407,38 @@ export const demoApi = {
     })
   },
 
-  reextractReceipt: (_id: string, _fields: ReceiptUpdate, _locked: LockableField[]): Promise<Receipt> => later(() => {
-    throw new ApiError(409, NEEDS_MODEL)
-  }),
+  // Only for the visitor's own photos, while the author's PC is on: the rest need the model (sample receipts too).
+  reextractReceipt: async (id: string, update: ReceiptUpdate, locked: LockableField[]): Promise<Receipt> => {
+    const file = livePhotos.get(id)
+    const reader = file ? live : undefined
+    const online = reader != null && (await reader.status()) != null
+    return later(() => {
+      const r = find(id)
+      if (r.status === 'Queued' || r.status === 'Processing') throw new ApiError(409, 'Extraction is already running for this receipt.')
+      if (!file) throw new ApiError(409, r.live ? UPLOAD_AGAIN : NEEDS_MODEL)
+      if (!online) throw new ApiError(409, NEEDS_MODEL)
+
+      // Same rules as ReextractRequest.Check: confirming's rules, only for the fields being kept.
+      const keep = [...new Set(locked)]
+      const category = normalizeCategory(update.category)
+      const errors: Record<string, string[]> = {}
+      if (keep.length === 0) errors.locked = ['Change at least one field to re-extract with.']
+      if (keep.includes('total') && !(update.total != null && update.total > 0)) errors.total = ['Total must be more than zero.']
+      if (keep.includes('category') && !category) errors.category = [`Category must be one of: ${CATEGORIES.join(', ')}.`]
+      if (keep.includes('vat_exempt_sales') && (update.vatExemptSales ?? 0) < 0) errors.vatExemptSales = ["VAT-exempt sales can't be negative."]
+      if (keep.includes('discount') && (update.discount ?? 0) < 0) errors.discount = ['Enter the discount as a positive amount.']
+      if (Object.keys(errors).length > 0) throw new ApiError(400, 'One or more validation errors occurred.', errors)
+
+      // The visitor's values for the kept fields show right away; the PC keeps them and re-reads the rest.
+      const fields: ReceiptUpdate = { ...update, merchant: update.merchant?.trim() || null, category }
+      Object.assign(r, Object.fromEntries(keep.map((f) => [FIELD_OF[f], fields[FIELD_OF[f]]])))
+      Object.assign(r, { status: 'Queued', error: null, confirmedAtUtc: null, live: true })
+      finish(r)
+      save()
+      startLiveRead(reader!, id, file, { fields, locked: keep })
+      return publicCopy(r)
+    })
+  },
 
   deleteReceipt: (id: string) =>
     later(() => {
