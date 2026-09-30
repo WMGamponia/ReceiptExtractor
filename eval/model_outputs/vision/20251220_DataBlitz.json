@@ -1,5 +1,5 @@
 {
-  "key": "03e6a629e30601a7",
+  "key": "564d904c8afaf27f",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "DATA BLITZ",
@@ -10,5 +10,5 @@
     "vat_exempt_sales": 0.0,
     "discount": 0.0
   },
-  "seconds": 9.16
+  "seconds": 8.86
 }

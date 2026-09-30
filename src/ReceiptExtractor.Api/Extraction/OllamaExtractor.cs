@@ -63,6 +63,7 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         Some receipts print the VAT breakdown as a tax table (Tax Code / RATE / Amount / TAX amt)
         instead of labeled lines: the V (12%) row's Amount is vatable_sales and its TAX is vat_amount,
         and the E (0%) row's Amount is vat_exempt_sales.
+        Keep the decimal point: 2,345.67 is 2345.67, never 2345 or 234567.
         Amounts are in PHP. Numbers only, no commas or peso signs.
         Use null if a field is unreadable.
         """;
@@ -109,7 +110,12 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             options = new { temperature = 0, num_ctx = opts.ContextLength }, // same input -> same output
             messages = new[]
             {
-                new { role = "user", content = Prompt + UserHints.Prompt(hints), images = new[] { Convert.ToBase64String(image) } },
+                new
+                {
+                    role = "user",
+                    content = Prompt + UserHints.Prompt(hints),
+                    images = new[] { Convert.ToBase64String(PhotoOrientation.Upright(image)) },
+                },
             },
         };
 

@@ -9,7 +9,7 @@
     "discount": 0.0,
     "category": "Food",
     "flags": [],
-    "extractionSeconds": 2.06
+    "extractionSeconds": 2.58
   },
   "bayanihan-supermarket": {
     "merchant": "BAYANIHAN SUPERMARKET INC.",
@@ -21,7 +21,7 @@
     "discount": 0.0,
     "category": "Groceries",
     "flags": [],
-    "extractionSeconds": 2.24
+    "extractionSeconds": 2.53
   },
   "botika-san-roque": {
     "merchant": "BOTIKA SAN ROQUE",
@@ -33,7 +33,7 @@
     "discount": 200.0,
     "category": "Health",
     "flags": [],
-    "extractionSeconds": 3.6
+    "extractionSeconds": 2.51
   },
   "petrolina-gas-station": {
     "merchant": "PETROLINA GAS STATION",
@@ -45,7 +45,7 @@
     "discount": 0.0,
     "category": "Fuel",
     "flags": [],
-    "extractionSeconds": 1.91
+    "extractionSeconds": 2.5
   },
   "tindahan-ni-mang-ben": {
     "merchant": "TINDAHAN NI MANG BEN",
@@ -57,6 +57,6 @@
     "discount": 0.0,
     "category": "Food",
     "flags": [],
-    "extractionSeconds": 1.7
+    "extractionSeconds": 2.34
   }
 }

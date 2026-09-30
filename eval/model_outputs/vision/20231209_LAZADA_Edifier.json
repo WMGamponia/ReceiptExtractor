@@ -1,5 +1,5 @@
 {
-  "key": "0cf7dd513603cda6",
+  "key": "b473bc180f0a4d12",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "LAZADA Edifier",
@@ -10,5 +10,5 @@
     "vat_exempt_sales": 0.0,
     "discount": 0.0
   },
-  "seconds": 16.84
+  "seconds": 17.31
 }

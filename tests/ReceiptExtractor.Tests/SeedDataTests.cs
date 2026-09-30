@@ -70,7 +70,7 @@ public class LabeledReceiptsTests : IDisposable
         {
             Assert.True(File.Exists(r.ImagePath), r.ImagePath);
             Assert.Contains(r.Category, Categories.All);
-            Assert.Empty(ReceiptValidator.Validate(r.Fields, new DateOnly(2026, 9, 28)));
+            Assert.Empty(ReceiptValidator.Validate(r.Fields, new DateOnly(2026, 9, 30)));
         });
     }
 
@@ -101,7 +101,7 @@ public class LabeledReceiptsTests : IDisposable
 
 public sealed class SeedDataTests : IDisposable
 {
-    private static readonly DateTimeOffset Now = new(2026, 9, 28, 4, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset Now = new(2026, 9, 30, 4, 0, 0, TimeSpan.Zero);
 
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
     private readonly string _storage = Directory.CreateTempSubdirectory().FullName;

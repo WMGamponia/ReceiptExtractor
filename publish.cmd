@@ -19,7 +19,8 @@ if errorlevel 8 goto :failed
 echo === Publishing publish\ReceiptTracker.exe ===
 rem IncludeAllContentForSelfExtract (with BundleContentIntoExe in the csproj) puts wwwroot and appsettings.json
 rem inside the exe. They're unpacked to a temp folder on start, which is why Program.cs points the content root
-rem at AppContext.BaseDirectory. The old output is removed first so no stale loose files are left beside the exe.
+rem at AppContext.BaseDirectory. IncludeNativeLibrariesForSelfExtract does the same for SkiaSharp's native library
+rem (it turns sideways phone photos upright, Extraction/PhotoOrientation.cs). The old output is removed first so no stale loose files are left beside the exe.
 if exist publish\ReceiptTracker.exe del publish\ReceiptTracker.exe
 if exist publish\ReceiptTracker.exe echo Close ReceiptTracker.exe first. & goto :failed
 if exist publish\wwwroot rmdir /s /q publish\wwwroot
@@ -29,6 +30,7 @@ dotnet publish src\ReceiptExtractor.Api -c Release -r win-x64 -o publish ^
   -p:SelfContained=true ^
   -p:PublishSingleFile=true ^
   -p:IncludeAllContentForSelfExtract=true ^
+  -p:IncludeNativeLibrariesForSelfExtract=true ^
   -p:EnableCompressionInSingleFile=true ^
   -p:IsTransformWebConfigDisabled=true ^
   -p:DebugType=none || goto :failed

@@ -48,6 +48,18 @@ public sealed class OllamaRequestTests
     }
 
     [Fact]
+    public async Task Sends_a_sideways_phone_photo_upright()
+    {
+        var (extractor, handler) = Create();
+        var sideways = await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", "sideways-exif6.jpg"));
+
+        await extractor.ExtractAsync(sideways, [], CancellationToken.None);
+
+        Assert.DoesNotContain(Convert.ToBase64String(sideways), handler.Body);
+        Assert.Contains(Convert.ToBase64String(PhotoOrientation.Upright(sideways)), handler.Body);
+    }
+
+    [Fact]
     public async Task Reading_from_a_file_sends_the_same_bytes()
     {
         var (extractor, handler) = Create();
