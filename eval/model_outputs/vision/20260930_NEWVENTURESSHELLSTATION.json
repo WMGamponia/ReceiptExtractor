@@ -1,5 +1,5 @@
 {
-  "key": "d29120e124552698",
+  "key": "645d8abf8bd5c8b5",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "NEW VENTURES SHELL STATION",
@@ -8,7 +8,8 @@
     "vat_amount": 107.14,
     "vatable_sales": 892.86,
     "vat_exempt_sales": 0.0,
-    "discount": 0.0
+    "discount": 0.0,
+    "service_charge": 0.0
   },
-  "seconds": 17.67
+  "seconds": 9.75
 }

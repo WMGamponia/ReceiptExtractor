@@ -1,0 +1,15 @@
+{
+  "key": "dd1681b7ec378414",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "TEXAS ROADHOUSE BISTRO ITALIANO CORP",
+    "date": "2026-08-08",
+    "total": 6323.43,
+    "vat_amount": 361.34,
+    "vatable_sales": 3011.16,
+    "vat_exempt_sales": 3011.16,
+    "discount": 602.23,
+    "service_charge": 542.01
+  },
+  "seconds": 9.8
+}

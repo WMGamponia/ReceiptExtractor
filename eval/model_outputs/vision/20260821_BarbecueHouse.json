@@ -1,0 +1,15 @@
+{
+  "key": "d06525ea2cf5eb88",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "ANUNCIACION A. MECHILL",
+    "date": "2026-02-21",
+    "total": 6498.91,
+    "vat_amount": 233.21,
+    "vatable_sales": 1943.45,
+    "vat_exempt_sales": 5441.67,
+    "discount": 388.0,
+    "service_charge": 590.81
+  },
+  "seconds": 9.78
+}

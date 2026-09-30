@@ -1,0 +1,15 @@
+{
+  "key": "761e1c0cdc7d0f9c",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "MANGINA FOODS & BEVERAGES PHIL",
+    "date": "2026-09-24",
+    "total": 443.86,
+    "vat_amount": 23.14,
+    "vatable_sales": 192.86,
+    "vat_exempt_sales": 284.82,
+    "discount": 56.96,
+    "service_charge": 0.0
+  },
+  "seconds": 9.69
+}
