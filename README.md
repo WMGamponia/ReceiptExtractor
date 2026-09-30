@@ -8,7 +8,7 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 > **Status:** works end to end, from photo to reviewed receipt to spending summary, and ships as Docker, a Windows exe and a demo site. Still growing the test dataset and tuning the prompt; see the [roadmap](ROADMAP.md).
 >
-> _Last updated: 2026-09-29_
+> _Last updated: 2026-09-30_
 
 **Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 

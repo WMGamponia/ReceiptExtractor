@@ -50,14 +50,15 @@ public sealed class LiveDemoTests : IAsyncLifetime
     }
 
     private Task<HttpResponseMessage> Send(
-        string fileName = "receipt.jpg", byte[]? bytes = null, string visitor = "203.0.113.7", HttpContent? content = null)
+        string fileName = "receipt.jpg", byte[]? bytes = null, string visitor = "203.0.113.7", HttpContent? content = null,
+        string? hints = null)
     {
         var photo = content ?? new ByteArrayContent(bytes ?? Jpeg);
         photo.Headers.ContentType = new("image/jpeg");
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/extract")
-        {
-            Content = new MultipartFormDataContent { { photo, "file", fileName } },
-        };
+        var form = new MultipartFormDataContent { { photo, "file", fileName } };
+        if (hints is not null)
+            form.Add(new StringContent(hints), "hints");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/extract") { Content = form };
         request.Headers.Add("X-Forwarded-For", visitor);
         request.Headers.Add("Origin", DemoSite);
         return _http.SendAsync(request);
@@ -123,6 +124,45 @@ public sealed class LiveDemoTests : IAsyncLifetime
         Assert.Equal("Groceries", reading.GetProperty("category").GetString());
         Assert.True(reading.GetProperty("extractionSeconds").GetDouble() >= 0);
         Assert.Equal(Jpeg, Assert.Single(_extractor.Images));
+    }
+
+    [Fact]
+    public async Task Re_extract_tells_the_model_the_corrected_fields_and_keeps_them()
+    {
+        await Start();
+        const string hints = """
+            {"fields": {"merchant": "Wrong Name", "date": "2026-09-02", "total": 1200, "vatAmount": null, "vatableSales": null,
+                        "vatExemptSales": null, "discount": null, "category": "health"},
+             "locked": ["total", "category"]}
+            """;
+
+        var response = await Send(hints: hints);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var reading = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var fields = reading.GetProperty("fields");
+        Assert.Equal(1200m, fields.GetProperty("total").GetDecimal()); // kept
+        Assert.Equal("Health", reading.GetProperty("category").GetString());
+        Assert.Equal("Bayanihan Supermarket", fields.GetProperty("merchant").GetString()); // not locked: the model's
+        Assert.Equal("2026-09-01", fields.GetProperty("date").GetString());
+        Assert.Equal([new FieldHint("total", "1200.00"), new FieldHint("category", "Health")], Assert.Single(_extractor.Hints));
+    }
+
+    [Theory]
+    [InlineData("""{"fields": {"total": 5}, "locked": ["tip"]}""", "locked")]
+    [InlineData("""{"fields": {"total": 0}, "locked": ["total"]}""", "total")]
+    [InlineData("""{"fields": {}, "locked": []}""", "locked")]
+    [InlineData("not json", "hints")]
+    public async Task Rejects_corrections_the_app_would_reject(string hints, string field)
+    {
+        await Start();
+
+        var response = await Send(hints: hints);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(problem.GetProperty("errors").TryGetProperty(field, out _));
+        Assert.Empty(_extractor.Images);
     }
 
     [Theory]
@@ -385,6 +425,7 @@ public sealed class LiveDemoTests : IAsyncLifetime
         private TaskCompletionSource _held = Open();
 
         public List<byte[]> Images { get; } = [];
+        public List<IReadOnlyList<FieldHint>> Hints { get; } = [];
         public Exception? Throw { get; set; }
 
         public ExtractionResult Result { get; } = new(
@@ -398,7 +439,11 @@ public sealed class LiveDemoTests : IAsyncLifetime
 
         public async Task<ExtractionResult> ExtractAsync(byte[] image, IReadOnlyList<FieldHint> hints, CancellationToken ct)
         {
-            lock (Images) Images.Add(image);
+            lock (Images)
+            {
+                Images.Add(image);
+                Hints.Add(hints);
+            }
             await _held.Task.WaitAsync(ct);
             return Throw is null ? Result : throw Throw;
         }

@@ -58,7 +58,8 @@ path gives 404. Not registering storage is what guarantees nothing can be writte
 2. The photo is copied into memory and passed to a new overload
    `IReceiptExtractor.ExtractAsync(byte[] image, IReadOnlyList<FieldHint> hints, CancellationToken ct)`.
    The existing path overload reads the file and calls it, so the real app's behaviour is unchanged. Hints are always
-   empty here (no re-extract on the live demo).
+   empty here (no re-extract on the live demo). _Changed 2026-09-30: an optional `hints` form field (a
+   `ReextractRequest` as JSON) makes Re-extract work on the live demo; see docs/live-demo.md._
 3. Response: the extracted fields and category, plus how long the read took. Checks/flags are computed in the browser
    (`demoApi` already mirrors `ReceiptValidator`). `ExtractionException` → 502 with a generic "The model couldn't read
    this photo; try another." Its real message (which names local addresses and setup commands) is logged, not sent.
@@ -113,7 +114,7 @@ unset (local builds, CI) the feature does nothing: no network calls, today's beh
 - `retryReceipt(id)`: for a failed live read whose photo is still available in this tab (the `File` is kept in memory,
   never in `localStorage`), queue it again. Otherwise (after a reload) 409 "Upload the photo again."
   Samples and pre-made receipts keep today's message.
-- `reextractReceipt`: unchanged (`NEEDS_MODEL`).
+- `reextractReceipt`: unchanged (`NEEDS_MODEL`). _Changed 2026-09-30: sends a visitor's open photo with the hints._
 - On load: receipts left Queued or Processing by a live read are marked Failed with "The page was closed before the
   author's PC finished reading it; upload the photo again."
 - Photos are still never saved to `localStorage` (replaced by the placeholder, as today).
@@ -174,7 +175,7 @@ synthetic receipt (`web/public/demo/receipts/*.jpg`). This also settles the clie
 
 ## Out of scope
 
-- Re-extract with hints on the live demo.
+- ~~Re-extract with hints on the live demo.~~ Added 2026-09-30.
 - An always-on or invite-only mode; a domain or Cloudflare Access.
 - A bash version of the script (only I run it, on Windows).
 - Using the live PC for the sample receipts.

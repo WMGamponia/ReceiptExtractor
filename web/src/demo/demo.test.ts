@@ -3,7 +3,7 @@ import type { Receipt } from '../api'
 import { vatWarnings } from '../format'
 import { receiptsCsv } from './csv'
 import { demoApi, NEEDS_MODEL, PAGE_CLOSED, resetDemo, SAMPLE_PHOTOS, setLiveReader, UPLOAD_AGAIN } from './demoApi'
-import type { LiveAnswer, LiveReader } from './liveReader'
+import type { LiveAnswer, LiveHints, LiveReader } from './liveReader'
 import { periodFor, summarize } from './periods'
 import { sampleReceipts } from './sampleReceipts'
 
@@ -133,6 +133,11 @@ describe('demoApi', () => {
     expect(r).toMatchObject({ status: 'Failed', error: NEEDS_MODEL })
     await expect(demoApi.retryReceipt(r.id)).rejects.toMatchObject({ message: NEEDS_MODEL })
   })
+
+  it('says Re-extract needs the model too', async () => {
+    const r = (await demoApi.listReceipts()).find((x) => x.originalFileName === 'botika-san-roque.jpg')!
+    await expect(demoApi.reextractReceipt(r.id, { ...r, total: 99 }, ['total'])).rejects.toMatchObject({ status: 409, message: NEEDS_MODEL })
+  })
 })
 
 describe('demoApi with the live demo', () => {
@@ -145,6 +150,7 @@ describe('demoApi with the live demo', () => {
 
   interface Pending {
     file: File
+    hints?: LiveHints
     onStart: () => boolean
     resolve: (answer: LiveAnswer | null) => void
     reject: (error: Error) => void
@@ -155,7 +161,7 @@ describe('demoApi with the live demo', () => {
     const pending: Pending[] = []
     const reader: LiveReader = {
       status: async () => (online ? { model: 'qwen3-vl:8b-instruct', perVisitorPerHour: 20 } : null),
-      read: (file, onStart) => new Promise((resolve, reject) => pending.push({ file, onStart, resolve, reject })),
+      read: (file, onStart, hints) => new Promise((resolve, reject) => pending.push({ file, hints, onStart, resolve, reject })),
     }
     setLiveReader(reader)
     return pending
@@ -220,6 +226,54 @@ describe('demoApi with the live demo', () => {
 
     expect(retried).toMatchObject({ status: 'Queued', error: null })
     expect(pending[1].file).toBe(file)
+  })
+
+  /** Your own photo, read once on the PC; `pending` holds what's sent after that. */
+  async function readPhoto(file = photo()) {
+    const pending = fakePc()
+    const r = await demoApi.uploadReceipt(file)
+    pending[0].onStart()
+    pending[0].resolve(READING)
+    await flush()
+    return { pending, r: await demoApi.getReceipt(r.id), file }
+  }
+
+  it('Re-extract sends the photo again with the corrected fields, which are kept', async () => {
+    const { pending, r, file } = await readPhoto()
+
+    const queued = await demoApi.reextractReceipt(r.id, { ...r, total: 260, category: ' food ' }, ['total', 'category', 'total'])
+
+    expect(queued).toMatchObject({ status: 'Queued', total: 260, category: 'Food', merchant: 'Kusina ni Aling Rosa' })
+    expect(pending[1].file).toBe(file)
+    expect(pending[1].hints).toEqual({ fields: expect.objectContaining({ total: 260, category: 'Food' }), locked: ['total', 'category'] })
+
+    pending[1].onStart()
+    pending[1].resolve({ ...READING, fields: { ...READING.fields, total: 260, vatAmount: 27.86, vatableSales: 232.14 } })
+    await flush()
+    const reread = await demoApi.getReceipt(r.id)
+    expect(reread).toMatchObject({ total: 260, vatAmount: 27.86, vatableSales: 232.14 })
+
+    const saved = await demoApi.confirmReceipt(r.id, reread)
+    expect(saved.corrections).toContain('total: ₱250.00 → ₱260.00') // compared with the first, unaided answer
+  })
+
+  it('Re-extract checks the kept fields like the API', async () => {
+    const { pending, r } = await readPhoto()
+
+    await expect(demoApi.reextractReceipt(r.id, { ...r, total: 0 }, ['total'])).rejects.toMatchObject({
+      status: 400,
+      fieldErrors: { total: ['Total must be more than zero.'] },
+    })
+    await expect(demoApi.reextractReceipt(r.id, r, [])).rejects.toMatchObject({ status: 400 })
+    expect(pending).toHaveLength(1)
+  })
+
+  it('Re-extract needs the PC to be on', async () => {
+    const { r } = await readPhoto()
+    const pending = fakePc(false)
+
+    await expect(demoApi.reextractReceipt(r.id, { ...r, total: 260 }, ['total'])).rejects.toMatchObject({ status: 409, message: NEEDS_MODEL })
+    expect(pending).toHaveLength(0)
   })
 
   it('needs the model, as before, when the PC is off', async () => {

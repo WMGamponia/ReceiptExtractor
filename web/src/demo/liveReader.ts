@@ -1,11 +1,17 @@
 // The live demo (docs/superpowers/specs/2026-09-28-live-demo-design.md): while the author runs scripts/live-demo.ps1,
 // visitors' own photos are read on the author's PC (the API's LiveDemo mode, through Tailscale Funnel at VITE_LIVE_URL).
 // This module only talks to it; demoApi decides what happens to the receipts.
-import type { Category, ReceiptUpdate } from '../api'
+import type { Category, LockableField, ReceiptUpdate } from '../api'
 
 export interface LiveStatus {
   model: string
   perVisitorPerHour: number | null
+}
+
+/** Re-extract: the fields the visitor corrected. The PC tells the model they're correct and keeps them. */
+export interface LiveHints {
+  fields: ReceiptUpdate
+  locked: LockableField[]
 }
 
 export interface LiveAnswer {
@@ -18,9 +24,10 @@ export interface LiveReader {
   status(): Promise<LiveStatus | null>
   /**
    * Waits for this photo's turn (one at a time, so a visitor's batch takes one place in the PC's line), calls
-   * `onStart` and sends it. `onStart` returning false skips it (null). Errors carry a message for the visitor.
+   * `onStart` and sends it (with `hints` for Re-extract). `onStart` returning false skips it (null). Errors carry a
+   * message for the visitor.
    */
-  read(file: File, onStart: () => boolean): Promise<LiveAnswer | null>
+  read(file: File, onStart: () => boolean, hints?: LiveHints): Promise<LiveAnswer | null>
 }
 
 export const WENT_OFFLINE = "The author's PC went offline; try again later."
@@ -61,11 +68,12 @@ export function createLiveReader(
     }
   }
 
-  async function send(file: File): Promise<LiveAnswer> {
+  async function send(file: File, hints: LiveHints | undefined): Promise<LiveAnswer> {
     // The service cuts off anything bigger before reading it (UploadRules.MaxBytes), with no message to show.
     if (file.size > MAX_PHOTO_BYTES) throw new Error(TOO_BIG)
     const body = new FormData()
     body.append('file', file)
+    if (hints) body.append('hints', JSON.stringify(hints))
     let response: Response
     try {
       response = await fetchFn(`${base}/api/extract`, { method: 'POST', body })
@@ -78,8 +86,8 @@ export function createLiveReader(
     return { fields: { ...reading.fields, category: reading.category }, extractionSeconds: reading.extractionSeconds }
   }
 
-  function read(file: File, onStart: () => boolean): Promise<LiveAnswer | null> {
-    const turn = line.then(() => (onStart() ? send(file) : null))
+  function read(file: File, onStart: () => boolean, hints?: LiveHints): Promise<LiveAnswer | null> {
+    const turn = line.then(() => (onStart() ? send(file, hints) : null))
     line = turn.catch(() => undefined) // a failed read doesn't hold up the next one
     return turn
   }

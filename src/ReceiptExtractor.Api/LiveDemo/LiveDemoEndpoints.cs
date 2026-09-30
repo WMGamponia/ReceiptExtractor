@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ReceiptExtractor.Api.Endpoints;
@@ -11,7 +12,11 @@ namespace ReceiptExtractor.Api.LiveDemo;
 /// <summary>GET /api/live: the demo site's "is the author's PC on?" check.</summary>
 public sealed record LiveStatus(string Model, int? PerVisitorPerHour);
 
-/// <summary>POST /api/extract: what the model read. Checks and flags are worked out in the browser (demoApi).</summary>
+/// <summary>
+/// POST /api/extract: what the model read. Checks and flags are worked out in the browser (demoApi).
+/// For Re-extract, the form's optional <c>hints</c> field is a <see cref="ReextractRequest"/> as JSON: the locked
+/// fields are given to the model as correct and returned as the visitor sent them.
+/// </summary>
 public sealed record LiveReading(ReceiptFields Fields, string? Category, double ExtractionSeconds);
 
 public static class LiveDemoEndpoints
@@ -49,6 +54,7 @@ public static class LiveDemoEndpoints
 
     private static async Task<IResult> Extract(
         IFormFile file,
+        [FromForm] string? hints,
         IReceiptExtractor extractor,
         ReadGate gate,
         IOptions<LiveDemoOptions> options,
@@ -62,6 +68,15 @@ public static class LiveDemoEndpoints
             return Invalid("Only JPG and PNG photos can be read.");
         if (!await UploadRules.LooksLikeImageAsync(file, ct))
             return Invalid("That file isn't a valid JPG or PNG image.");
+
+        Corrections? corrections = null;
+        if (!string.IsNullOrEmpty(hints))
+        {
+            var (valid, errors) = ParseHints(hints);
+            if (valid is null)
+                return Results.ValidationProblem(errors);
+            corrections = valid;
+        }
 
         // In memory only: the photo is never written anywhere, and it's gone when this request ends.
         var image = new byte[file.Length];
@@ -82,11 +97,19 @@ public static class LiveDemoEndpoints
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var result = await extractor.ExtractAsync(image, [], timeout.Token);
+            var locked = corrections?.Locked.ToHashSet() ?? [];
+            var fieldHints = corrections is null ? [] : UserHints.Describe(corrections.Fields, corrections.Category, locked);
+            var result = await extractor.ExtractAsync(image, fieldHints, timeout.Token);
             var seconds = Math.Round(stopwatch.Elapsed.TotalSeconds, 2);
-            log.LogInformation("Read a {Kb} KB photo for visitor {Visitor} in {Seconds}s; {Left} of {Budget} reads left",
-                image.Length / 1024, visitor, seconds, gate.Left, options.Value.Budget);
-            return Results.Ok(new LiveReading(result.Fields, result.Category, seconds));
+            // How many fields were kept, never their values.
+            log.LogInformation("Read a {Kb} KB photo for visitor {Visitor} in {Seconds}s ({Kept} fields kept); {Left} of {Budget} reads left",
+                image.Length / 1024, visitor, seconds, locked.Count, gate.Left, options.Value.Budget);
+            return corrections is null
+                ? Results.Ok(new LiveReading(result.Fields, result.Category, seconds))
+                : Results.Ok(new LiveReading(
+                    UserHints.Keep(result.Fields, corrections.Fields, locked),
+                    locked.Contains(UserHints.Category) ? corrections.Category : result.Category,
+                    seconds));
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -99,6 +122,20 @@ public static class LiveDemoEndpoints
             log.LogWarning("Couldn't read a photo for visitor {Visitor}: {Error}", visitor, ex.Message);
             return Results.Problem(CouldntRead, statusCode: StatusCodes.Status502BadGateway);
         }
+    }
+
+    private static (Corrections? Valid, Dictionary<string, string[]> Errors) ParseHints(string json)
+    {
+        try
+        {
+            if (JsonSerializer.Deserialize<ReextractRequest>(json, JsonSerializerOptions.Web) is { } request)
+                return request.Check();
+        }
+        catch (JsonException)
+        {
+            // falls through to the message below
+        }
+        return (null, new() { ["hints"] = ["The corrected fields couldn't be read; try again."] });
     }
 
     private static IResult Invalid(string message) =>
