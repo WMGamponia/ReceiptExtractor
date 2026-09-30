@@ -181,7 +181,7 @@ def read_all(api: str) -> None:
             receipt = call(f"{api}/api/receipts/{receipt['id']}")
         if receipt["status"] == "Failed":
             raise SystemExit(f"{name}: {receipt['error']}")
-        keep = ("merchant", "date", "total", "vatAmount", "vatableSales", "vatExemptSales", "discount", "category",
+        keep = ("merchant", "date", "total", "vatAmount", "vatableSales", "vatExemptSales", "discount", "serviceCharge", "category",
                 "flags", "extractionSeconds")
         answers[name] = {k: receipt[k] for k in keep}
         print(f"{name}: {receipt['status']} in {receipt['extractionSeconds']}s")
