@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Receipt } from '../api'
+import type { Receipt, ReceiptUpdate } from '../api'
 import { vatWarnings } from '../format'
 import { receiptsCsv } from './csv'
 import { demoApi, NEEDS_MODEL, PAGE_CLOSED, resetDemo, SAMPLE_PHOTOS, setLiveReader, UPLOAD_AGAIN } from './demoApi'
@@ -136,6 +136,16 @@ describe('demoApi', () => {
     })
     expect(saved.flags).toEqual([])
     expect(saved.serviceCharge).toBe(100)
+  })
+
+  it('records a changed service charge, and keeps it when an older page leaves it out', async () => {
+    const r = (await demoApi.listReceipts()).find((x) => x.originalFileName === 'botika-san-roque.jpg')!
+    const changed = await demoApi.confirmReceipt(r.id, { ...r, vatAmount: 0, serviceCharge: 50 })
+    expect(changed.corrections).toContain('service_charge: ₱0.00 → ₱50.00')
+
+    const { serviceCharge: _omitted, ...older } = { ...r, vatAmount: 0 }
+    const kept = await demoApi.confirmReceipt(r.id, older as unknown as ReceiptUpdate) // no serviceCharge key
+    expect(kept.serviceCharge).toBe(50)
   })
 
   it('checks required fields like the API', async () => {

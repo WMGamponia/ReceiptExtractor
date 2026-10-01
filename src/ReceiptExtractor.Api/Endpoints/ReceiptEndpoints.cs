@@ -51,7 +51,7 @@ public sealed record ReceiptUpdate(
     decimal? VatExemptSales,
     decimal? Discount,
     string? Category,
-    decimal? ServiceCharge = null); // last so positional callers keep compiling; JSON binds by name
+    decimal? ServiceCharge = null); // 0 = none; null/missing on confirm keeps the stored value (a page from before the field)
 
 /// <summary>
 /// "Re-extract with my changes": the fields named in <see cref="Locked"/> (model JSON names, e.g. "total")
@@ -288,7 +288,7 @@ public static class ReceiptEndpoints
 
         var fields = new ReceiptFields(
             MerchantRules.Normalize(update.Merchant), update.Date, update.Total, update.VatAmount, update.VatableSales,
-            update.VatExemptSales, update.Discount, update.ServiceCharge);
+            update.VatExemptSales, update.Discount, update.ServiceCharge ?? receipt.ServiceCharge);
         receipt.Corrections = DiffFromModel(receipt, fields, category);
         receipt.ApplyFields(fields, category);
 

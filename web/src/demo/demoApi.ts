@@ -349,7 +349,7 @@ export const demoApi = {
         vatableSales: update.vatableSales,
         vatExemptSales: update.vatExemptSales,
         discount: update.discount,
-        serviceCharge: update.serviceCharge,
+        serviceCharge: update.serviceCharge ?? r.serviceCharge, // missing: a page from before the field (like the API)
         category,
       }
       r.corrections = corrections(r.model, fields)
