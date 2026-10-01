@@ -291,7 +291,7 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
     vatableSales: vatable,
     vatExemptSales: exempt,
     discount,
-    serviceCharge: serviceCharge ?? null,
+    serviceCharge: serviceCharge ?? 0, // 0, not null: the API keeps the stored value when it's null
     category: form.category || null,
   })
 
@@ -387,17 +387,17 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
         </p>
       )}
 
+      <Field label="VAT-exempt sales (₱)" hint="e.g. SC / PWD" error={fieldError('vatExemptSales')}>
+        <MoneyInput value={form.vatExemptSales} onChange={(v) => setAmount('vatExemptSales', v)} />
+      </Field>
       <div className="field-pair">
-        <Field label="VAT-exempt sales (₱)" hint="e.g. SC / PWD" error={fieldError('vatExemptSales')}>
-          <MoneyInput value={form.vatExemptSales} onChange={(v) => setAmount('vatExemptSales', v)} />
-        </Field>
         <Field label="Discount (₱)" hint="all, added up" error={fieldError('discount')}>
           <MoneyInput value={form.discount} onChange={(v) => setAmount('discount', v)} />
         </Field>
+        <Field label="Service charge (₱)" hint="e.g. 10% at restaurants" error={fieldError('serviceCharge')}>
+          <MoneyInput value={form.serviceCharge} onChange={(v) => setAmount('serviceCharge', v)} />
+        </Field>
       </div>
-      <Field label="Service charge (₱)" hint="e.g. 10% at restaurants" error={fieldError('serviceCharge')}>
-        <MoneyInput value={form.serviceCharge} onChange={(v) => setAmount('serviceCharge', v)} />
-      </Field>
 
       {liveWarnings.length > 0 && <Flags flags={liveWarnings} title="VAT doesn't add up" />}
 
