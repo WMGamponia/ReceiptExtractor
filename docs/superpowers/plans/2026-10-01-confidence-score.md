@@ -888,7 +888,7 @@ git commit -m "Confidence score: asked from Ollama, stored per receipt, low scor
 - Consumes: `ExtractionResult.Confidence`, `ConfidenceGate.WithLocked` (Tasks 3–4).
 - Produces: `LiveReading(ReceiptFields Fields, string? Category, double ExtractionSeconds, Confidence? Confidence)`. JSON: `"confidence": {"overall": 0.62, "fields": {"total": 0.62}}` (dictionary keys are not camel-cased), or `null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Look at how `LiveDemoTests.cs` fakes `IReceiptExtractor` (`grep -n "IReceiptExtractor\|ExtractionResult(" tests/ReceiptExtractor.Tests/LiveDemoTests.cs`). Make the fake return `Confidence: new Confidence(0.62, new Dictionary<string, double> { ["date"] = 0.99, ["total"] = 0.62 })`, then add the following tests, using the file's existing helpers for posting a photo (and hints):
 
@@ -914,12 +914,12 @@ Look at how `LiveDemoTests.cs` fakes `IReceiptExtractor` (`grep -n "IReceiptExtr
 
 If the helpers have other names, use those. The assertions are what matter.
 
-- [ ] **Step 2: Run them to make sure they fail**
+- [x] **Step 2: Run them to make sure they fail**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build" --filter LiveDemoTests`
 Expected: FAIL, no `confidence` property.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```csharp
 public sealed record LiveReading(ReceiptFields Fields, string? Category, double ExtractionSeconds, Confidence? Confidence);
@@ -940,12 +940,12 @@ and in `Extract`:
 
 `locked` is a `HashSet<string>` of model JSON names, which is what `WithLocked` expects. Don't add anything to the log line.
 
-- [ ] **Step 4: Run them to make sure they pass**
+- [x] **Step 4: Run them to make sure they pass**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build"`
 Expected: all pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ReceiptExtractor.Api/LiveDemo/LiveDemoEndpoints.cs tests/ReceiptExtractor.Tests/LiveDemoTests.cs

@@ -148,6 +148,29 @@ public sealed class LiveDemoTests : IAsyncLifetime
         Assert.Equal([new FieldHint("total", "1200.00"), new FieldHint("category", "Health")], Assert.Single(_extractor.Hints));
     }
 
+    [Fact]
+    public async Task Returns_the_confidence_score()
+    {
+        await Start();
+
+        var reading = await (await Send()).Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(0.62, reading.GetProperty("confidence").GetProperty("overall").GetDouble());
+        Assert.Equal(0.62, reading.GetProperty("confidence").GetProperty("fields").GetProperty("total").GetDouble());
+    }
+
+    [Fact]
+    public async Task Fields_the_visitor_kept_count_as_sure()
+    {
+        await Start();
+        const string hints = """{"fields": {"total": 1200}, "locked": ["total"]}""";
+
+        var reading = await (await Send(hints: hints)).Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(0.99, reading.GetProperty("confidence").GetProperty("overall").GetDouble());
+        Assert.Equal(1.0, reading.GetProperty("confidence").GetProperty("fields").GetProperty("total").GetDouble());
+    }
+
     [Theory]
     [InlineData("""{"fields": {"total": 5}, "locked": ["tip"]}""", "locked")]
     [InlineData("""{"fields": {"total": 0}, "locked": ["total"]}""", "total")]
@@ -431,7 +454,8 @@ public sealed class LiveDemoTests : IAsyncLifetime
         public ExtractionResult Result { get; } = new(
             new ReceiptFields("Bayanihan Supermarket", new DateOnly(2026, 9, 1), 1124.46m, 120.48m, 1003.98m),
             "Groceries",
-            "{}");
+            "{}",
+            new Confidence(0.62, new Dictionary<string, double> { ["date"] = 0.99, ["total"] = 0.62 }));
 
         public void Hold() => _held = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
