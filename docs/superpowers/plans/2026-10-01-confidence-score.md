@@ -300,7 +300,7 @@ git commit -m "Confidence scorer: least likely token per date/amount field, shar
 - Consumes: `tests/confidence-cases.json` `"scorer"` (Task 1).
 - Produces: `SCORED_FIELDS: list[str]`; `score(content: str, tokens: list[dict]) -> dict` returning `{"overall": float | None, "fields": dict[str, float]}`. Each token dict has `token`, `logprob` and optionally `bytes`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `eval/test_confidence.py`:
 
@@ -331,12 +331,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run it to make sure it fails**
+- [x] **Step 2: Run it to make sure it fails**
 
 Run: `.venv/Scripts/python -m unittest discover -s eval -p "test_confidence.py"`
 Expected: `ModuleNotFoundError: No module named 'confidence'`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `eval/confidence.py`:
 
@@ -403,14 +403,14 @@ def score(content: str, tokens: list[dict] | None) -> dict:
     return {"overall": min(fields.values()), "fields": fields} if fields else none
 ```
 
-- [ ] **Step 4: Run it to make sure it passes**
+- [x] **Step 4: Run it to make sure it passes**
 
 Run: `.venv/Scripts/python -m unittest discover -s eval -p "test_*.py"`
 Expected: all OK, including the existing `test_scoring.py`.
 
 Python's `round` uses banker's rounding and C# `Math.Round` defaults to it too (`MidpointRounding.ToEven`), so both agree on ties.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add eval/confidence.py eval/test_confidence.py
