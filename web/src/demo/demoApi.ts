@@ -146,6 +146,9 @@ function blank(imageUrl: string, originalFileName: string, uploadedAtUtc: string
     uploadedAtUtc,
     confirmedAtUtc: null,
     imageUrl,
+    confidence: null,
+    fieldConfidence: {},
+    minConfidence: MIN_CONFIDENCE,
   }
 }
 

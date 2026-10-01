@@ -974,7 +974,7 @@ git commit -m "Live demo: the reading carries the confidence score"
   - `export function unsureFields(r: Pick<Receipt, 'status' | 'fieldConfidence' | 'minConfidence'>): ScoredField[]`
   - `Receipt` gains `confidence: number | null`, `fieldConfidence: FieldConfidence`, `minConfidence: number`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `web/src/confidence.test.ts`:
 
@@ -1011,12 +1011,12 @@ describe('unsureFields', () => {
 })
 ```
 
-- [ ] **Step 2: Run them to make sure they fail**
+- [x] **Step 2: Run them to make sure they fail**
 
 Run (in `web/`): `npm test -- confidence`
 Expected: FAIL, cannot find module `./confidence`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `web/src/api.ts`: add to `Receipt` after `imageUrl: string`:
 
@@ -1083,12 +1083,12 @@ export function unsureFields(r: Pick<Receipt, 'status' | 'fieldConfidence' | 'mi
 }
 ```
 
-- [ ] **Step 4: Run them to make sure they pass, and type-check**
+- [x] **Step 4: Run them to make sure they pass, and type-check**
 
 Run (in `web/`): `npm test` then `npx tsc -b --noEmit` (or the project's `npm run build` type-check step; see `package.json`).
 Expected: the tests pass. TypeScript will complain wherever a `Receipt` literal is now missing the three fields (in `demoApi.ts` `blank()` and test fixtures). In `blank()`, add `confidence: null, fieldConfidence: {}, minConfidence: MIN_CONFIDENCE,`. In test fixtures, add the same three fields with `minConfidence: 0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src

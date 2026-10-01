@@ -34,7 +34,7 @@ const receipt = (over: Partial<Receipt>): Receipt => ({
   id: crypto.randomUUID(), name: '', status: 'Confirmed', merchant: 'DataBlitz', date: '2025-12-20', total: 100,
   vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, serviceCharge: null, category: 'Shopping', flags: [],
   corrections: [], extractionSeconds: null, error: null, originalFileName: 'x.jpg', uploadedAtUtc: '', confirmedAtUtc: null,
-  imageUrl: '', ...over,
+  imageUrl: '', confidence: null, fieldConfidence: {}, minConfidence: 0, ...over,
 })
 
 describe('summarize (mirrors SummaryEndpoints.cs)', () => {
