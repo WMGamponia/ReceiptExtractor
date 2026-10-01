@@ -23,23 +23,20 @@
     "serviceCharge": 0.0,
     "category": "Groceries",
     "flags": [],
-    "extractionSeconds": 2.75
+    "extractionSeconds": 2.72
   },
   "botika-san-roque": {
     "merchant": "BOTIKA SAN ROQUE",
     "date": "2026-08-09",
     "total": 800.0,
-    "vatAmount": 120.0,
+    "vatAmount": 0.0,
     "vatableSales": 0.0,
     "vatExemptSales": 1000.0,
     "discount": 200.0,
     "serviceCharge": 0.0,
     "category": "Health",
-    "flags": [
-      "VATable sales + VAT + VAT-exempt sales = ₱1,120.00 (₱920.00 after the ₱200.00 discount), but total is ₱800.00.",
-      "VAT ₱120.00 isn't 12% of VATable sales (expected ₱0.00). Could be a misread."
-    ],
-    "extractionSeconds": 2.74
+    "flags": [],
+    "extractionSeconds": 2.75
   },
   "petrolina-gas-station": {
     "merchant": "PETROLINA GAS STATION",
@@ -65,6 +62,6 @@
     "serviceCharge": 0.0,
     "category": "Food",
     "flags": [],
-    "extractionSeconds": 2.56
+    "extractionSeconds": 2.55
   }
 }

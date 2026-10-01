@@ -138,7 +138,7 @@ Both use the same model (`qwen3-vl:8b-instruct` via [Ollama](https://ollama.com)
 
 | Approach | Merchant | Date | Total | VAT | Core accuracy¹ | Median | Slowest |
 |---|---|---|---|---|---|---|---|
-| **Vision model** | 100% | 67% | 89% | 89% | **85%** ✅ | 9.5s | 18.6s |
+| **Vision model** | 100% | 67% | 89% | 89% | **85%** ✅ | 9.5s | 17.9s |
 | Tesseract + LLM | 29% | 0% | 29% | 43% | 19% ❌ | 1.5s | 2.0s |
 
 ¹ Date + merchant + total. Target: ≥ 85%, under 30s per receipt. Full breakdown: [eval/RESULTS.md](eval/RESULTS.md).
@@ -155,13 +155,13 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **Check what the model actually sees.** A phone photo read VAT as `10714` instead of `107.14`, but the same photo sent through Discord read fine. Phones save photos sideways with an EXIF tag saying how to turn them; browsers obey it, Ollama doesn't, so the model was reading the receipt on its side. The app now turns photos upright before sending them (`Extraction/PhotoOrientation.cs`, and the same in the eval), and that receipt is in the dataset. Its photo also carried the phone's GPS location, so dataset photos are now stripped of metadata (`eval/photo_metadata.py`) and a test fails on any with a location. Resizing turned out not to matter: the eval scored the same at 1536, 2048 and 4080 px.
 - **Restaurants add a service charge after the VAT breakdown.** Two of the new receipts (Texas Roadhouse, a barbecue house) only add up once the 10% service charge is counted, so it's now its own field and the VAT check allows it on top of the breakdown or inside it, like a discount. Guessing "a 5–10% gap is probably a service charge" would also have hidden real misreads.
 - **Handwritten receipts have more than one date.** The printed box at the bottom (printer's accreditation, ATP, "Date Issued") has dates too, and the model often took one of those. One prompt line fixed some of them, but the first wording also made the model read the gas-station demo receipt's CASH line as the total. A prompt change can break a field it doesn't mention, so the demo receipts are re-read and checked after every prompt change.
+- **A label in the prompt can match the wrong line.** The prompt asked for the "12% VAT" line, and the model took the pharmacy demo receipt's "Less 12% VAT" line, even though the next sentence said not to. Pointing at the breakdown instead ("the VAT Amount line, next to VATable Sales") fixed it, and also fixed a VAT-exempt misread in the eval.
 - **Prompts are suggestions; code is a rule.** Asking for "centavos exactly as printed" fixed dropped decimals, but the model still ignored a rule about marketplace names. Exact rules belong in code after extraction.
 
 ### Known issues
 
 - **Accuracy is exactly at the target.** Core accuracy is 85% (46 of 54) against the 85% target, so the next prompt change that costs a field will fail CI. The 10 newer receipts (many handwritten) are harder: they score 77%, the original 8 score 96%.
-- **Where it's wrong:** dates on 6 receipts (handwritten ones, a faded one, day and month swapped on one, a YY/MM/DD date), two handwritten totals (`2259.09` read as `2259.89`, an overwritten `750` as `740`), and the VAT split on three receipts (the VAT check flags two of those). Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
-- **The demo pharmacy receipt's VAT is misread.** The model takes it from the senior-citizen "Less 12% VAT" line, even though the prompt says not to; the VAT check flags it.
+- **Where it's wrong:** dates on 6 receipts (handwritten ones, a faded one, day and month swapped on one, a YY/MM/DD date), two handwritten totals (`2259.09` read as `2259.89`, an overwritten `750` as `740`), and the VAT split on two receipts (the VAT check flags both). Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
 - **Decimal points in small VAT tables.** On a receipt with a Net / VAT / Gross table (not in the dataset yet), the model read `125.13` as `125` or `12513` depending on the image size. A prompt line ("Keep the decimal point") fixed it at every size, but a new layout could bring it back; the VAT check flags it when it does.
 - **Small sample.** 18 receipts; three have a discount and two a service charge, all restaurants. The dataset is growing toward 30–50.
 

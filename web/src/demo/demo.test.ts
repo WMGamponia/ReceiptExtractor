@@ -110,15 +110,14 @@ describe('demoApi', () => {
 
     vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + sample.answer.extractionSeconds * 1000 + 1 })
     const read = await demoApi.getReceipt(uploaded.id)
-    // The model took its VAT from the "Less 12% VAT" line, so the check sends it to review.
-    expect(read).toMatchObject({ status: 'NeedsReview', merchant: sample.answer.merchant, date: sample.answer.date })
+    expect(read).toMatchObject({ status: 'Extracted', merchant: sample.answer.merchant, date: sample.answer.date })
   })
 
   it('lists what the user corrected when confirming', async () => {
     const r = (await demoApi.listReceipts()).find((x) => x.originalFileName === 'botika-san-roque.jpg')!
-    const saved = await demoApi.confirmReceipt(r.id, { ...r, vatAmount: 0, category: 'Health' })
+    const saved = await demoApi.confirmReceipt(r.id, { ...r, total: 850, discount: 150 })
     expect(saved.status).toBe('Confirmed')
-    expect(saved.corrections).toEqual(['vat_amount: ₱120.00 → ₱0.00'])
+    expect(saved.corrections).toEqual(['total: ₱800.00 → ₱850.00', 'discount: ₱200.00 → ₱150.00'])
   })
 
   it('checks the service charge like the API', async () => {
