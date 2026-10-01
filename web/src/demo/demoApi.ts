@@ -14,6 +14,7 @@ import {
   type ReceiptUpdate,
   type Summary,
 } from '../api'
+import { confidenceFlag, type FieldConfidence, type Scored } from '../confidence'
 import { formatPeso, todayIso, vatWarnings } from '../format'
 import { csvDataUrl, receiptsCsv } from './csv'
 import { createLiveReader, type LiveHints, type LiveReader, type LiveStatus } from './liveReader'
@@ -55,6 +56,12 @@ const PLACEHOLDER = '/demo/sample-receipt.png'
 const PRELOADED = ['botika-san-roque', 'petrolina-gas-station'] // waiting in "To review" on a first visit
 // Same as Ollama:MinConfidence in appsettings.json (SyncTests); the demo has no server to ask.
 export const MIN_CONFIDENCE = 0
+let minConfidence = MIN_CONFIDENCE
+
+/** Tests: a threshold other than the shipped one. */
+export function setMinConfidence(value: number) {
+  minConfidence = value
+}
 
 /** A receipt plus what the model answered (to list the user's corrections) and when "reading" finishes. */
 interface DemoReceipt extends Receipt {
@@ -116,7 +123,7 @@ function initialReceipts(): DemoReceipt[] {
   })
   const toReview = SAMPLE_PHOTOS.filter((p) => PRELOADED.includes(p.key)).map((p) => {
     const r: DemoReceipt = { ...blank(p.url, p.fileName, new Date().toISOString()), model: answerFields(p.answer) }
-    applyAnswer(r, answerFields(p.answer), p.answer.extractionSeconds)
+    applyAnswer(r, answerFields(p.answer), p.answer.extractionSeconds, answerScore(p.answer))
     return r
   })
   return [...toReview, ...confirmed]
@@ -166,10 +173,20 @@ const answerFields = (a: Answer): ReceiptUpdate => ({
   category: a.category,
 })
 
-/** The model is done: its fields, the checks, and Extracted / NeedsReview (like ExtractionWorker). */
-function applyAnswer(r: DemoReceipt, fields: ReceiptUpdate, extractionSeconds: number) {
+/** What the real app's score was for a sample (model-answers.json), if it had one. */
+const answerScore = (a: Answer): Scored | null =>
+  'confidence' in a && a.confidence != null
+    ? { overall: a.confidence as number, fields: (a as { fieldConfidence?: FieldConfidence }).fieldConfidence ?? {} }
+    : null
+
+/** The model is done: its fields, the checks, the confidence gate, and Extracted / NeedsReview (like ExtractionWorker). */
+function applyAnswer(r: DemoReceipt, fields: ReceiptUpdate, extractionSeconds: number, scored?: Scored | null) {
   Object.assign(r, fields, { extractionSeconds, readyAt: undefined })
+  r.confidence = scored?.overall ?? null
+  r.fieldConfidence = scored?.fields ?? {}
   r.flags = checks(r)
+  const unsure = scored ? confidenceFlag(scored, minConfidence) : null
+  if (unsure) r.flags.push(unsure)
   r.status = r.flags.length > 0 ? 'NeedsReview' : 'Extracted'
   finish(r)
 }
@@ -227,7 +244,7 @@ function tick() {
   for (const r of load()) {
     if (r.status === 'Processing' && r.readyAt != null && Date.now() >= r.readyAt) {
       const { answer } = SAMPLE_PHOTOS.find((p) => p.fileName === r.originalFileName)!
-      applyAnswer(r, answerFields(answer), answer.extractionSeconds)
+      applyAnswer(r, answerFields(answer), answer.extractionSeconds, answerScore(answer))
       changed = true
     }
   }
@@ -251,7 +268,7 @@ function startLiveRead(reader: LiveReader, id: string, file: File, hints?: LiveH
         if (!answer || !r) return
         // To list the visitor's corrections later: the first, unaided answer (like ExtractionWorker).
         if (!hints || !r.model) r.model = answer.fields
-        applyAnswer(r, answer.fields, answer.extractionSeconds)
+        applyAnswer(r, answer.fields, answer.extractionSeconds, answer.confidence) // the PC already counted locked fields as sure
         save()
       },
       (e: Error) => {
@@ -286,7 +303,13 @@ const FIELD_OF: Record<LockableField, keyof ReceiptUpdate> = {
 
 const normalizeCategory = (c: string | null) => CATEGORIES.find((x) => x.toLowerCase() === c?.trim().toLowerCase()) ?? null
 
-const publicCopy = ({ model: _model, readyAt: _readyAt, live: _live, ...r }: DemoReceipt): Receipt => ({ ...r })
+// Receipts saved before scores existed have no confidence fields; the threshold is always the current one.
+const publicCopy = ({ model: _model, readyAt: _readyAt, live: _live, ...r }: DemoReceipt): Receipt => ({
+  ...r,
+  confidence: r.confidence ?? null,
+  fieldConfidence: r.fieldConfidence ?? {},
+  minConfidence,
+})
 
 // Answer asynchronously, like a real request.
 const later = <T>(make: () => T): Promise<T> => new Promise((resolve, reject) => setTimeout(() => {

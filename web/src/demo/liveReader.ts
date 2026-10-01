@@ -2,6 +2,7 @@
 // visitors' own photos are read on the author's PC (the API's LiveDemo mode, through Tailscale Funnel at VITE_LIVE_URL).
 // This module only talks to it; demoApi decides what happens to the receipts.
 import type { Category, LockableField, ReceiptUpdate } from '../api'
+import type { Scored } from '../confidence'
 
 export interface LiveStatus {
   model: string
@@ -17,6 +18,7 @@ export interface LiveHints {
 export interface LiveAnswer {
   fields: ReceiptUpdate
   extractionSeconds: number
+  confidence?: Scored | null // null/missing: the PC runs a version without scores
 }
 
 export interface LiveReader {
@@ -42,6 +44,7 @@ interface Reading {
   fields: Omit<ReceiptUpdate, 'category'>
   category: Category | null
   extractionSeconds: number
+  confidence?: Scored | null
 }
 
 export function createLiveReader(
@@ -83,7 +86,11 @@ export function createLiveReader(
     }
     if (!response.ok) throw new Error(await reason(response, () => remember(null)))
     const reading = (await response.json()) as Reading
-    return { fields: { ...reading.fields, category: reading.category }, extractionSeconds: reading.extractionSeconds }
+    return {
+      fields: { ...reading.fields, category: reading.category },
+      extractionSeconds: reading.extractionSeconds,
+      confidence: reading.confidence ?? null,
+    }
   }
 
   function read(file: File, onStart: () => boolean, hints?: LiveHints): Promise<LiveAnswer | null> {

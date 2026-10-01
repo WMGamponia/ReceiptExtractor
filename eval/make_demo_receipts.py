@@ -182,7 +182,7 @@ def read_all(api: str) -> None:
         if receipt["status"] == "Failed":
             raise SystemExit(f"{name}: {receipt['error']}")
         keep = ("merchant", "date", "total", "vatAmount", "vatableSales", "vatExemptSales", "discount", "serviceCharge", "category",
-                "flags", "extractionSeconds")
+                "flags", "extractionSeconds", "confidence", "fieldConfidence")
         answers[name] = {k: receipt[k] for k in keep}
         print(f"{name}: {receipt['status']} in {receipt['extractionSeconds']}s")
     ANSWERS.parent.mkdir(parents=True, exist_ok=True)

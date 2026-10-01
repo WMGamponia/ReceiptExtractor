@@ -1217,7 +1217,7 @@ git commit -m "Review page: confidence badge, unsure markers, Use upload date; p
 - Consumes: `withLocked`, `confidenceFlag`, `Scored` (Task 6); `MIN_CONFIDENCE` (Task 4).
 - Produces: `LiveAnswer.confidence?: Scored | null`; `model-answers.json` entries may have `confidence` (number|null) and `fieldConfidence` (object); `applyAnswer(r, fields, extractionSeconds, scored?: Scored | null)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `demo.test.ts`, add:
 
@@ -1271,12 +1271,12 @@ Add `MIN_CONFIDENCE`, `setMinConfidence` and `resetDemoMemoryOnly` to the import
 
 In `liveReader.test.ts`, add a case next to the existing successful-read test. Have the fake fetch return `{ fields: {...}, category: 'Food', extractionSeconds: 1, confidence: { overall: 0.5, fields: { total: 0.5 } } }` and assert `answer.confidence` equals `{ overall: 0.5, fields: { total: 0.5 } }`. Add a second case where the JSON has no `confidence` and assert `answer.confidence` is `null`.
 
-- [ ] **Step 2: Run them to make sure they fail**
+- [x] **Step 2: Run them to make sure they fail**
 
 Run (in `web/`): `npm test -- demo liveReader`
 Expected: FAIL (missing exports and fields).
 
-- [ ] **Step 3: liveReader**
+- [x] **Step 3: liveReader**
 
 ```ts
 export interface LiveAnswer {
@@ -1295,7 +1295,7 @@ interface Reading {
 
 In `send`, return `{ fields: { ...reading.fields, category: reading.category }, extractionSeconds: reading.extractionSeconds, confidence: reading.confidence ?? null }`. Import `type { Scored } from '../confidence'`.
 
-- [ ] **Step 4: demoApi**
+- [x] **Step 4: demoApi**
 
 ```ts
 // Same as Ollama:MinConfidence in appsettings.json (SyncTests); the demo has no server to ask.
@@ -1346,16 +1346,16 @@ const publicCopy = ({ model: _model, readyAt: _readyAt, live: _live, ...r }: Dem
 
 Imports: `import { confidenceFlag, type FieldConfidence, type Scored } from '../confidence'`.
 
-- [ ] **Step 5: make_demo_receipts keeps the score**
+- [x] **Step 5: make_demo_receipts keeps the score**
 
 In `eval/make_demo_receipts.py` `read_all`, add `"confidence", "fieldConfidence"` to `keep`. (The answers file is regenerated in Task 9, after the threshold is set.)
 
-- [ ] **Step 6: Run the tests to make sure they pass**
+- [x] **Step 6: Run the tests to make sure they pass**
 
 Run (in `web/`): `npm test` and the type-check; `dotnet test … --filter SyncTests`.
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/src/demo eval/make_demo_receipts.py

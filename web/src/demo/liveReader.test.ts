@@ -50,12 +50,27 @@ describe('createLiveReader', () => {
 
     const answer = await createLiveReader(BASE, fetchFn)!.read(photo(), () => true)
 
-    expect(answer).toEqual({ fields: { ...READING.fields, category: 'Food' }, extractionSeconds: 12.5 })
+    expect(answer).toEqual({ fields: { ...READING.fields, category: 'Food' }, extractionSeconds: 12.5, confidence: null })
     const [url, init] = fetchFn.mock.calls[0]
     expect(url).toBe(`${BASE}/api/extract`)
     expect(init?.method).toBe('POST')
     expect((init!.body as FormData).get('file')).toBeInstanceOf(File)
     expect((init!.body as FormData).has('hints')).toBe(false)
+  })
+
+  it('passes the confidence score through', async () => {
+    const confidence = { overall: 0.5, fields: { total: 0.5 } }
+    const fetchFn = vi.fn<typeof fetch>(async () => json(200, { ...READING, confidence }))
+
+    const answer = await createLiveReader(BASE, fetchFn)!.read(photo(), () => true)
+
+    expect(answer!.confidence).toEqual(confidence)
+  })
+
+  it('no score from a PC without scores is null', async () => {
+    const answer = await createLiveReader(BASE, vi.fn<typeof fetch>(async () => json(200, READING)))!.read(photo(), () => true)
+
+    expect(answer!.confidence).toBeNull()
   })
 
   it('sends the corrected fields for Re-extract', async () => {
