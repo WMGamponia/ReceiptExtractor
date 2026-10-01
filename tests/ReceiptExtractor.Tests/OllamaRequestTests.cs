@@ -15,23 +15,52 @@ public sealed class OllamaRequestTests
 
     private static readonly byte[] Image = [0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3];
 
-    private sealed class CapturingHandler : HttpMessageHandler
+    // Same answer with the token probabilities Ollama adds for logprobs: true (one shaky digit in the total).
+    private const string AnswerWithLogprobs = """
+        {"message":{"content":"{\"date\":\"2026-08-09\",\"total\":100}"},"done_reason":"stop","logprobs":[
+          {"token":"{\"date\":\"","logprob":0},{"token":"2026-08-09","logprob":-0.01},{"token":"\",\"total\":","logprob":0},
+          {"token":"1","logprob":-0.5},{"token":"00","logprob":0},{"token":"}","logprob":0}]}
+        """;
+
+    private sealed class CapturingHandler(string answer) : HttpMessageHandler
     {
         public string? Body { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             Body = await request.Content!.ReadAsStringAsync(ct);
-            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(Answer, Encoding.UTF8, "application/json") };
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(answer, Encoding.UTF8, "application/json") };
         }
     }
 
-    private static (OllamaExtractor Extractor, CapturingHandler Handler) Create()
+    private static (OllamaExtractor Extractor, CapturingHandler Handler) Create(string answer = Answer)
     {
         var options = new OllamaOptions();
-        var handler = new CapturingHandler();
+        var handler = new CapturingHandler(answer);
         var http = new HttpClient(handler) { BaseAddress = new Uri(options.BaseUrl) };
         return (new OllamaExtractor(http, Options.Create(options)), handler);
+    }
+
+    [Fact]
+    public async Task Asks_for_token_probabilities_and_scores_them()
+    {
+        var (extractor, handler) = Create(AnswerWithLogprobs);
+
+        var result = await extractor.ExtractAsync(Image, [], CancellationToken.None);
+
+        Assert.Contains("\"logprobs\":true", handler.Body);
+        Assert.Equal(0.607, result.Confidence!.Overall);
+        Assert.Equal(0.99, result.Confidence.Fields["date"]);
+    }
+
+    [Fact]
+    public async Task An_answer_without_probabilities_has_no_score()
+    {
+        var (extractor, _) = Create();
+
+        var result = await extractor.ExtractAsync(Image, [], CancellationToken.None);
+
+        Assert.Null(result.Confidence!.Overall);
     }
 
     [Fact]

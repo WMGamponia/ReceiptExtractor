@@ -57,8 +57,8 @@ Score(string json, IReadOnlyList<TokenLogprob> tokens) -> Confidence(double? Ove
 
 - `ReceiptRecord`: `double? Confidence`, `Dictionary<string, double> FieldConfidence` (JSON text column, model JSON
   names as keys). Both go in `Data/SchemaPatches.cs`.
-- `ReceiptResponse`: `Confidence`, `FieldConfidence` (camelCase keys to match the rest of the API, e.g.
-  `vatAmount`), and `MinConfidence` (the configured threshold, so the web app has one source of truth).
+- `ReceiptResponse`: `Confidence`, `FieldConfidence` (model JSON names as keys, e.g.
+  `vat_amount`, the same names the web app already uses for locked fields), and `MinConfidence` (the configured threshold, so the web app has one source of truth).
 - `ReceiptUpdate` / `ReextractRequest` don't accept them: they're not editable.
 - Older and seeded receipts: `null` / empty. No score is shown and nothing is flagged.
 

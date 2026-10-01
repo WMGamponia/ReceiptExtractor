@@ -583,7 +583,7 @@ git commit -m "Confidence gate: locked fields count as sure, one flag below the 
   - Response JSON: `confidence` (number|null), `fieldConfidence` (object keyed by model JSON names), `minConfidence` (number)
   - `ReceiptResponse.From(ReceiptRecord r, double minConfidence)`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `OllamaRequestTests.cs`, add a second canned answer, a way to choose it, and two tests. Replace the `CapturingHandler` and `Create` with:
 
@@ -736,12 +736,12 @@ In `SyncTests.cs`, add (needs `using System.Text.Json;`, already imported):
 
 Add `export const MIN_CONFIDENCE = 0` to `web/src/demo/demoApi.ts` now, next to `PRELOADED`, with the comment `// Same as Ollama:MinConfidence in appsettings.json (SyncTests); the demo has no server to ask.`. Task 8 uses it.
 
-- [ ] **Step 2: Run them to make sure they fail**
+- [x] **Step 2: Run them to make sure they fail**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build"`
 Expected: build errors (`MinConfidence`, `Confidence` on the record and result not found).
 
-- [ ] **Step 3: Extractor**
+- [x] **Step 3: Extractor**
 
 In `OllamaExtractor.cs`:
 
@@ -782,7 +782,7 @@ Replace `ChatResponse` and add the token record:
 
 Add `"MinConfidence": 0` to the `"Ollama"` section of `appsettings.json`, after `"ContextLength": 8192`.
 
-- [ ] **Step 4: Storage**
+- [x] **Step 4: Storage**
 
 `ReceiptRecord.cs`, after `Flags`:
 
@@ -817,7 +817,7 @@ Add `"MinConfidence": 0` to the `"Ollama"` section of `appsettings.json`, after 
         (nameof(ReceiptRecord.FieldConfidence), "TEXT NOT NULL DEFAULT '{}'"),
 ```
 
-- [ ] **Step 5: API response**
+- [x] **Step 5: API response**
 
 In `ReceiptEndpoints.cs`, append three members to `ReceiptResponse` after `string ImageUrl`:
 
@@ -836,7 +836,7 @@ In `ReceiptEndpoints.cs`, append three members to `ReceiptResponse` after `strin
 
 Every handler that calls `ReceiptResponse.From` (upload, list, get, rotate, confirm, bulk confirm, retry, re-extract: `grep -n "ReceiptResponse.From" src/ReceiptExtractor.Api/Endpoints/ReceiptEndpoints.cs`) gets a parameter `IOptions<OllamaOptions> ollama` and passes `ollama.Value.MinConfidence`. In the list handler that is `receipts.Select(r => ReceiptResponse.From(r, ollama.Value.MinConfidence))`. `Microsoft.Extensions.Options` and `ReceiptExtractor.Api.Extraction` are already imported.
 
-- [ ] **Step 6: Worker**
+- [x] **Step 6: Worker**
 
 In `ExtractionWorker.ProcessAsync`, resolve the options next to the extractor:
 
@@ -860,16 +860,16 @@ In `ExtractionWorker.ProcessAsync`, resolve the options next to the extractor:
 
 (the existing `receipt.LockedFields = [];` line moves into this block, so remove the original.) `Confidence` here is the record from `ReceiptExtractor.Api.Extraction`. If it clashes with the `ReceiptRecord.Confidence` property name in this file, write `Extraction.Confidence.None`.
 
-- [ ] **Step 7: Spec correction**
+- [x] **Step 7: Spec correction**
 
 In the spec's "Storage and API" section, replace `FieldConfidence` (camelCase keys to match the rest of the API, e.g. `vatAmount`) with `FieldConfidence` (model JSON names as keys, e.g. `vat_amount`, the same names the web app already uses for locked fields).
 
-- [ ] **Step 8: Run all C# tests**
+- [x] **Step 8: Run all C# tests**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build"`
 Expected: all pass. If `Confidence_threshold_is_the_same_everywhere` fails, check that `MIN_CONFIDENCE = 0` was added to demoApi.ts.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src tests web/src/demo/demoApi.ts docs/superpowers/specs/2026-10-01-confidence-score-design.md

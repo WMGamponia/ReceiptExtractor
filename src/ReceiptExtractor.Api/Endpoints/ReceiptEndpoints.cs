@@ -33,12 +33,15 @@ public sealed record ReceiptResponse(
     string OriginalFileName,
     DateTime UploadedAtUtc,
     DateTime? ConfirmedAtUtc,
-    string ImageUrl)
+    string ImageUrl,
+    double? Confidence,                                 // read-only: the model's, never the user's
+    IReadOnlyDictionary<string, double> FieldConfidence,
+    double MinConfidence)                               // Ollama:MinConfidence, so the web app has one source of truth
 {
-    public static ReceiptResponse From(ReceiptRecord r) => new(
+    public static ReceiptResponse From(ReceiptRecord r, double minConfidence) => new(
         r.Id, r.DisplayName, r.Status, r.Merchant, r.Date, r.Total, r.VatAmount, r.VatableSales,
         r.VatExemptSales, r.Discount, r.ServiceCharge, r.Category, r.Flags, r.Corrections, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
-        r.ConfirmedAtUtc, $"/api/receipts/{r.Id}/image");
+        r.ConfirmedAtUtc, $"/api/receipts/{r.Id}/image", r.Confidence, r.FieldConfidence, minConfidence);
 }
 
 /// <summary>What the review screen sends back after the user checks/corrects the fields.</summary>
@@ -142,6 +145,7 @@ public static class ReceiptEndpoints
         ExtractionQueue queue,
         IOptions<StorageOptions> storage,
         TimeProvider time,
+        IOptions<OllamaOptions> ollama,
         CancellationToken ct)
     {
         if (file.Length is 0 or > UploadRules.MaxBytes)
@@ -174,13 +178,13 @@ public static class ReceiptEndpoints
 
         await queue.EnqueueAsync(id, ct);
 
-        return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt));
+        return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt, ollama.Value.MinConfidence));
     }
 
-    private static async Task<Ok<List<ReceiptResponse>>> List(AppDbContext db, CancellationToken ct)
+    private static async Task<Ok<List<ReceiptResponse>>> List(AppDbContext db, IOptions<OllamaOptions> ollama, CancellationToken ct)
     {
         var receipts = await db.Receipts.OrderByDescending(r => r.UploadedAtUtc).ToListAsync(ct);
-        return TypedResults.Ok(receipts.Select(ReceiptResponse.From).ToList());
+        return TypedResults.Ok(receipts.Select(r => ReceiptResponse.From(r, ollama.Value.MinConfidence)).ToList());
     }
 
     /// <param name="from">First day to include (YYYY-MM-DD); default: no lower limit</param>
@@ -201,10 +205,10 @@ public static class ReceiptEndpoints
             ReceiptCsv.Encode(ReceiptCsv.Write(receipts)), "text/csv; charset=utf-8", ReceiptCsv.FileName(from, to));
     }
 
-    private static async Task<Results<Ok<ReceiptResponse>, NotFound>> Get(Guid id, AppDbContext db, CancellationToken ct)
+    private static async Task<Results<Ok<ReceiptResponse>, NotFound>> Get(Guid id, AppDbContext db, IOptions<OllamaOptions> ollama, CancellationToken ct)
     {
         var receipt = await db.Receipts.FindAsync([id], ct);
-        return receipt is null ? TypedResults.NotFound() : TypedResults.Ok(ReceiptResponse.From(receipt));
+        return receipt is null ? TypedResults.NotFound() : TypedResults.Ok(ReceiptResponse.From(receipt, ollama.Value.MinConfidence));
     }
 
     private static async Task<Results<PhysicalFileHttpResult, NotFound>> GetImage(
@@ -222,7 +226,7 @@ public static class ReceiptEndpoints
     }
 
     private static async Task<Results<Ok<ReceiptResponse>, NotFound, Conflict<string>, ValidationProblem>> ReplaceImage(
-        Guid id, IFormFile file, AppDbContext db, CancellationToken ct)
+        Guid id, IFormFile file, AppDbContext db, IOptions<OllamaOptions> ollama, CancellationToken ct)
     {
         var receipt = await db.Receipts.FindAsync([id], ct);
         if (receipt is null)
@@ -258,7 +262,7 @@ public static class ReceiptEndpoints
         receipt.ContentType = type.ContentType;
         await db.SaveChangesAsync(ct);
 
-        return TypedResults.Ok(ReceiptResponse.From(receipt));
+        return TypedResults.Ok(ReceiptResponse.From(receipt, ollama.Value.MinConfidence));
     }
 
     private static async Task<Results<Ok<ReceiptResponse>, NotFound, Conflict<string>, ValidationProblem>> Confirm(
@@ -266,6 +270,7 @@ public static class ReceiptEndpoints
         ReceiptUpdate update,
         AppDbContext db,
         TimeProvider time,
+        IOptions<OllamaOptions> ollama,
         CancellationToken ct)
     {
         var receipt = await db.Receipts.FindAsync([id], ct);
@@ -298,13 +303,14 @@ public static class ReceiptEndpoints
         receipt.ConfirmedAtUtc = time.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(ct);
 
-        return TypedResults.Ok(ReceiptResponse.From(receipt));
+        return TypedResults.Ok(ReceiptResponse.From(receipt, ollama.Value.MinConfidence));
     }
 
     private static async Task<Results<Ok<BulkConfirmResult>, ValidationProblem>> ConfirmMany(
         BulkConfirmRequest request,
         AppDbContext db,
         TimeProvider time,
+        IOptions<OllamaOptions> ollama,
         CancellationToken ct)
     {
         var ids = request.Ids?.Distinct().ToList() ?? [];
@@ -340,7 +346,7 @@ public static class ReceiptEndpoints
             receipt.Flags = ReceiptValidator.Validate(receipt.Fields, today); // kept as warnings
             receipt.Status = ReceiptStatus.Confirmed;
             receipt.ConfirmedAtUtc = now;
-            confirmed.Add(ReceiptResponse.From(receipt));
+            confirmed.Add(ReceiptResponse.From(receipt, ollama.Value.MinConfidence));
         }
 
         await db.SaveChangesAsync(ct); // all-or-nothing for the ones that passed
@@ -366,7 +372,7 @@ public static class ReceiptEndpoints
     }
 
     private static async Task<Results<Accepted<ReceiptResponse>, NotFound, Conflict<string>>> Retry(
-        Guid id, AppDbContext db, ExtractionQueue queue, CancellationToken ct)
+        Guid id, AppDbContext db, ExtractionQueue queue, IOptions<OllamaOptions> ollama, CancellationToken ct)
     {
         var receipt = await db.Receipts.FindAsync([id], ct);
         if (receipt is null)
@@ -378,7 +384,7 @@ public static class ReceiptEndpoints
         await db.SaveChangesAsync(ct);
         await queue.EnqueueAsync(id, ct);
 
-        return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt));
+        return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt, ollama.Value.MinConfidence));
     }
 
     private const string BusyReading = "The model is reading this receipt right now. Try again once it's done.";
@@ -448,7 +454,7 @@ public static class ReceiptEndpoints
     }
 
     private static async Task<Results<Accepted<ReceiptResponse>, NotFound, Conflict<string>, ValidationProblem>> Reextract(
-        Guid id, ReextractRequest request, AppDbContext db, ExtractionQueue queue, CancellationToken ct)
+        Guid id, ReextractRequest request, AppDbContext db, ExtractionQueue queue, IOptions<OllamaOptions> ollama, CancellationToken ct)
     {
         var receipt = await db.Receipts.FindAsync([id], ct);
         if (receipt is null)
@@ -471,7 +477,7 @@ public static class ReceiptEndpoints
         await db.SaveChangesAsync(ct);
         await queue.EnqueueAsync(id, ct);
 
-        return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt));
+        return TypedResults.Accepted($"/api/receipts/{id}", ReceiptResponse.From(receipt, ollama.Value.MinConfidence));
     }
 
     /// <summary>What the user changed compared with what the model extracted.</summary>

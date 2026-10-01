@@ -53,6 +53,8 @@ export function setLiveReader(reader: LiveReader | undefined) {
 const STORAGE_KEY = 'receipt-tracker-demo-v1'
 const PLACEHOLDER = '/demo/sample-receipt.png'
 const PRELOADED = ['botika-san-roque', 'petrolina-gas-station'] // waiting in "To review" on a first visit
+// Same as Ollama:MinConfidence in appsettings.json (SyncTests); the demo has no server to ask.
+export const MIN_CONFIDENCE = 0
 
 /** A receipt plus what the model answered (to list the user's corrections) and when "reading" finishes. */
 interface DemoReceipt extends Receipt {
