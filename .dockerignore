@@ -20,4 +20,5 @@ datasets/*
 !datasets/receipts
 tests/*
 !tests/vat-cases.json
+!tests/confidence-cases.json
 Claude outputs

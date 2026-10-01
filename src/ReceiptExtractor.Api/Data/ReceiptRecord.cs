@@ -38,6 +38,15 @@ public sealed class ReceiptRecord
     /// <summary>Problems found by <see cref="ReceiptValidator"/>. Non-empty means "needs review".</summary>
     public List<string> Flags { get; set; } = [];
 
+    /// <summary>
+    /// How sure the model was of the dates and amounts it read: the lowest of <see cref="FieldConfidence"/>
+    /// (see ConfidenceScorer). Null = no score (read before scores existed, or Ollama sent none). Never user-editable.
+    /// </summary>
+    public double? Confidence { get; set; }
+
+    /// <summary>Per scored field, model JSON names as keys (e.g. "vat_amount"). Fields the user locked count as 1.0.</summary>
+    public Dictionary<string, double> FieldConfidence { get; set; } = [];
+
     /// <summary>Raw JSON the model returned. Compare with the confirmed fields to see what users corrected.</summary>
     public string? ModelOutput { get; set; }
 

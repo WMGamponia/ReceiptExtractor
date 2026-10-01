@@ -36,6 +36,7 @@ public sealed class ReceiptEndpointsTests : IAsyncLifetime
         builder.Services.Configure<StorageOptions>(o => o.ReceiptsPath = Path.GetTempPath());
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<ExtractionQueue>();
+        builder.Services.Configure<OllamaOptions>(o => o.MinConfidence = 0.85);
         _app = builder.Build();
         _app.MapReceiptEndpoints();
         await _app.StartAsync();
@@ -51,17 +52,23 @@ public sealed class ReceiptEndpointsTests : IAsyncLifetime
         _connection.Dispose();
     }
 
-    private Guid AddReceipt(string? modelOutput = ModelOutput)
+    private Guid AddReceipt(string? modelOutput = ModelOutput, double? confidence = null, ReceiptStatus status = ReceiptStatus.Extracted)
     {
         using var scope = _app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var receipt = new ReceiptRecord
         {
-            Id = Guid.NewGuid(), Status = ReceiptStatus.Extracted, OriginalFileName = "r.jpg", ImagePath = "r.jpg",
+            Id = Guid.NewGuid(), Status = status, OriginalFileName = "r.jpg", ImagePath = "r.jpg",
             ContentType = "image/jpeg", ModelOutput = modelOutput,
         };
         if (modelOutput is not null)
             receipt.ApplyFields(OllamaExtractor.ParseModelOutput(modelOutput).Fields, "Food");
+        if (confidence is { } c)
+        {
+            receipt.Confidence = c;
+            receipt.FieldConfidence = new() { ["date"] = 0.99, ["total"] = c };
+            receipt.Flags = ["The model was unsure about Total (62%). Check it against the photo."];
+        }
         db.Receipts.Add(receipt);
         db.SaveChanges();
         return receipt.Id;
@@ -82,6 +89,46 @@ public sealed class ReceiptEndpointsTests : IAsyncLifetime
 
     private static async Task<JsonElement> Json(HttpResponseMessage response) =>
         await response.Content.ReadFromJsonAsync<JsonElement>();
+
+    [Fact]
+    public async Task Returns_the_score_and_the_threshold()
+    {
+        var id = AddReceipt(confidence: 0.62, status: ReceiptStatus.NeedsReview);
+
+        var receipt = await Json(await _http.GetAsync($"/api/receipts/{id}"));
+
+        Assert.Equal(0.62, receipt.GetProperty("confidence").GetDouble());
+        Assert.Equal(0.62, receipt.GetProperty("fieldConfidence").GetProperty("total").GetDouble());
+        Assert.Equal(0.85, receipt.GetProperty("minConfidence").GetDouble());
+    }
+
+    [Fact]
+    public async Task A_receipt_without_a_score_says_so()
+    {
+        var receipt = await Json(await _http.GetAsync($"/api/receipts/{AddReceipt()}"));
+
+        Assert.Equal(JsonValueKind.Null, receipt.GetProperty("confidence").ValueKind);
+        Assert.Empty(receipt.GetProperty("fieldConfidence").EnumerateObject());
+    }
+
+    [Fact]
+    public async Task Confirming_drops_the_unsure_flag_and_keeps_the_score()
+    {
+        var id = AddReceipt(confidence: 0.62, status: ReceiptStatus.NeedsReview);
+
+        // A client trying to set the score along with the fields: it isn't part of ReceiptUpdate, so it's ignored.
+        var body = new Dictionary<string, object?>
+        {
+            ["merchant"] = "TEXAS ROADHOUSE", ["date"] = "2026-08-08", ["total"] = 6323.43m, ["vatAmount"] = 361.34m,
+            ["vatableSales"] = 3011.16m, ["vatExemptSales"] = 3011.16m, ["discount"] = 602.23m, ["serviceCharge"] = 542.01m,
+            ["category"] = "Food", ["confidence"] = 1.0,
+        };
+        var saved = await Json(await _http.PutAsJsonAsync($"/api/receipts/{id}", body));
+
+        Assert.Equal("Confirmed", saved.GetProperty("status").GetString());
+        Assert.Empty(saved.GetProperty("flags").EnumerateArray());
+        Assert.Equal(0.62, saved.GetProperty("confidence").GetDouble());
+    }
 
     [Fact]
     public async Task Rejects_a_negative_service_charge()

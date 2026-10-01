@@ -10,7 +10,17 @@
     "serviceCharge": 0.0,
     "category": "Food",
     "flags": [],
-    "extractionSeconds": 4.94
+    "extractionSeconds": 9.42,
+    "confidence": 0.999,
+    "fieldConfidence": {
+      "date": 1,
+      "total": 1,
+      "vat_amount": 1,
+      "vatable_sales": 1,
+      "vat_exempt_sales": 0.999,
+      "discount": 1,
+      "service_charge": 1
+    }
   },
   "bayanihan-supermarket": {
     "merchant": "BAYANIHAN SUPERMARKET INC.",
@@ -23,7 +33,17 @@
     "serviceCharge": 0.0,
     "category": "Groceries",
     "flags": [],
-    "extractionSeconds": 2.72
+    "extractionSeconds": 7.18,
+    "confidence": 1,
+    "fieldConfidence": {
+      "date": 1,
+      "total": 1,
+      "vat_amount": 1,
+      "vatable_sales": 1,
+      "vat_exempt_sales": 1,
+      "discount": 1,
+      "service_charge": 1
+    }
   },
   "botika-san-roque": {
     "merchant": "BOTIKA SAN ROQUE",
@@ -36,7 +56,17 @@
     "serviceCharge": 0.0,
     "category": "Health",
     "flags": [],
-    "extractionSeconds": 2.75
+    "extractionSeconds": 7.23,
+    "confidence": 0.989,
+    "fieldConfidence": {
+      "date": 1,
+      "total": 1,
+      "vat_amount": 0.989,
+      "vatable_sales": 1,
+      "vat_exempt_sales": 1,
+      "discount": 1,
+      "service_charge": 1
+    }
   },
   "petrolina-gas-station": {
     "merchant": "PETROLINA GAS STATION",
@@ -49,7 +79,17 @@
     "serviceCharge": 0.0,
     "category": "Fuel",
     "flags": [],
-    "extractionSeconds": 2.68
+    "extractionSeconds": 7.34,
+    "confidence": 0.992,
+    "fieldConfidence": {
+      "date": 1,
+      "total": 0.992,
+      "vat_amount": 1,
+      "vatable_sales": 1,
+      "vat_exempt_sales": 1,
+      "discount": 1,
+      "service_charge": 1
+    }
   },
   "tindahan-ni-mang-ben": {
     "merchant": "TINDAHAN NI MANG BEN",
@@ -62,6 +102,16 @@
     "serviceCharge": 0.0,
     "category": "Food",
     "flags": [],
-    "extractionSeconds": 2.55
+    "extractionSeconds": 6.85,
+    "confidence": 0.997,
+    "fieldConfidence": {
+      "date": 1,
+      "total": 1,
+      "vat_amount": 1,
+      "vatable_sales": 0.997,
+      "vat_exempt_sales": 1,
+      "discount": 1,
+      "service_charge": 1
+    }
   }
 }

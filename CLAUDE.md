@@ -19,6 +19,11 @@ Keep ROADMAP.md checkboxes in sync too.
   demo's `hints` form field only. `ReextractRequest.Check` holds the rules for both.)
 - Frontend: React + TypeScript + Vite PWA in `web/`; dev server proxies `/api` to the API on :5036.
   VAT checks exist in both `ReceiptValidator.cs` and `web/src/format.ts` — keep them in sync.
+  Confidence score (spec `docs/superpowers/specs/2026-10-01-confidence-score-design.md`): token logprobs from Ollama →
+  `ConfidenceScorer.cs` (copy in `eval/confidence.py`) → `ConfidenceGate.cs` (copy in `web/src/confidence.ts`); shared
+  cases in `tests/confidence-cases.json`. `Ollama:MinConfidence` is in `appsettings.json`, the `OllamaOptions` default
+  and `MIN_CONFIDENCE` in `demoApi.ts` (SyncTests); re-pick it with `eval/calibrate_confidence.py` after a model or
+  prompt change.
   Demo site (`npm run build:demo`, Cloudflare Pages): `web/src/demo/demoApi.ts` stands in for the API in the browser;
   when an endpoint's rules change, change demoApi too. No real receipt photos on the demo, ever: only the synthetic ones
   from `eval/make_demo_receipts.py` (re-run its `read` step after a prompt change).

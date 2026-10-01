@@ -17,7 +17,7 @@ public sealed record LiveStatus(string Model, int? PerVisitorPerHour);
 /// For Re-extract, the form's optional <c>hints</c> field is a <see cref="ReextractRequest"/> as JSON: the locked
 /// fields are given to the model as correct and returned as the visitor sent them.
 /// </summary>
-public sealed record LiveReading(ReceiptFields Fields, string? Category, double ExtractionSeconds);
+public sealed record LiveReading(ReceiptFields Fields, string? Category, double ExtractionSeconds, Confidence? Confidence);
 
 public static class LiveDemoEndpoints
 {
@@ -104,12 +104,14 @@ public static class LiveDemoEndpoints
             // How many fields were kept, never their values.
             log.LogInformation("Read a {Kb} KB photo for visitor {Visitor} in {Seconds}s ({Kept} fields kept); {Left} of {Budget} reads left",
                 image.Length / 1024, visitor, seconds, locked.Count, gate.Left, options.Value.Budget);
+            var confidence = ConfidenceGate.WithLocked(result.Confidence ?? Confidence.None, locked);
             return corrections is null
-                ? Results.Ok(new LiveReading(result.Fields, result.Category, seconds))
+                ? Results.Ok(new LiveReading(result.Fields, result.Category, seconds, confidence))
                 : Results.Ok(new LiveReading(
                     UserHints.Keep(result.Fields, corrections.Fields, locked),
                     locked.Contains(UserHints.Category) ? corrections.Category : result.Category,
-                    seconds));
+                    seconds,
+                    confidence));
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {

@@ -15,6 +15,7 @@ import {
   type Amounts,
 } from '../format'
 import { useReceipt } from '../useReceipt'
+import { formatConfidence, unsureFields } from '../confidence'
 
 /** Where "back to the list" goes: the list tab the user came from (see ReceiptsPage), else the default tab. */
 function useBackToList(): string {
@@ -43,7 +44,14 @@ export function ReviewPage() {
     <section>
       <div className="page-header">
         <h1>{isBusy(receipt) ? receipt.originalFileName : receipt.name}</h1>
-        <StatusBadge status={receipt.status} />
+        <span className="header-badges">
+          <StatusBadge status={receipt.status} />
+          {receipt.confidence != null && (
+            <span className="badge badge-confidence" title="How sure the model was of the dates and amounts it read (its least sure one). You can't change it.">
+              Confidence {formatConfidence(receipt.confidence)}
+            </span>
+          )}
+        </span>
       </div>
 
       <div className="review">
@@ -240,6 +248,8 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
   const [autoFilled, setAutoFilled] = useState<VatField | null>(null)
 
   const set = (field: keyof FormState) => (value: string) => setForm((f) => ({ ...f, [field]: value }))
+  const unsure = new Set(unsureFields(receipt))
+  const uploadDate = todayIso(new Date(receipt.uploadedAtUtc))
 
   function setVatField(field: VatField, value: string) {
     const counterpart = otherVatField(field)
@@ -360,19 +370,31 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
         <input value={form.merchant} onChange={(e) => set('merchant')(e.target.value)} />
       </Field>
 
-      <Field label="Date" required error={fieldError('date') ?? (futureDate ? 'This date is in the future — day and month swapped?' : undefined)}>
+      <Field
+        label="Date"
+        required
+        unsure={unsure.has('date')}
+        error={fieldError('date') ?? (futureDate ? 'This date is in the future — day and month swapped?' : undefined)}
+      >
         <input type="date" value={form.date} onChange={(e) => set('date')(e.target.value)} required />
       </Field>
+      {unsure.has('date') && form.date !== uploadDate && (
+        <p className="field-action">
+          <button type="button" className="link" onClick={() => set('date')(uploadDate)}>
+            Use upload date ({uploadDate})
+          </button>
+        </p>
+      )}
 
-      <Field label="Total (₱)" required error={fieldError('total')}>
+      <Field label="Total (₱)" required unsure={unsure.has('total')} error={fieldError('total')}>
         <MoneyInput value={form.total} onChange={(v) => setAmount('total', v)} required />
       </Field>
 
       <div className="field-pair">
-        <Field label="VAT (₱)" hint={autoFilled === 'vatAmount' ? 'auto-filled' : '0 if non-VAT'}>
+        <Field label="VAT (₱)" unsure={unsure.has('vat_amount')} hint={autoFilled === 'vatAmount' ? 'auto-filled' : '0 if non-VAT'}>
           <MoneyInput value={form.vatAmount} onChange={(v) => setVatField('vatAmount', v)} />
         </Field>
-        <Field label="VATable sales (₱)" hint={autoFilled === 'vatableSales' ? 'auto-filled' : undefined}>
+        <Field label="VATable sales (₱)" unsure={unsure.has('vatable_sales')} hint={autoFilled === 'vatableSales' ? 'auto-filled' : undefined}>
           <MoneyInput value={form.vatableSales} onChange={(v) => setVatField('vatableSales', v)} />
         </Field>
       </div>
@@ -387,14 +409,14 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
         </p>
       )}
 
-      <Field label="VAT-exempt sales (₱)" hint="e.g. SC / PWD" error={fieldError('vatExemptSales')}>
+      <Field label="VAT-exempt sales (₱)" unsure={unsure.has('vat_exempt_sales')} hint="e.g. SC / PWD" error={fieldError('vatExemptSales')}>
         <MoneyInput value={form.vatExemptSales} onChange={(v) => setAmount('vatExemptSales', v)} />
       </Field>
       <div className="field-pair">
-        <Field label="Discount (₱)" hint="all, added up" error={fieldError('discount')}>
+        <Field label="Discount (₱)" unsure={unsure.has('discount')} hint="all, added up" error={fieldError('discount')}>
           <MoneyInput value={form.discount} onChange={(v) => setAmount('discount', v)} />
         </Field>
-        <Field label="Service charge (₱)" hint="e.g. 10% at restaurants" error={fieldError('serviceCharge')}>
+        <Field label="Service charge (₱)" unsure={unsure.has('service_charge')} hint="e.g. 10% at restaurants" error={fieldError('serviceCharge')}>
           <MoneyInput value={form.serviceCharge} onChange={(v) => setAmount('serviceCharge', v)} />
         </Field>
       </div>
@@ -475,12 +497,17 @@ function MoneyInput(props: { value: string; onChange: (value: string) => void; r
   )
 }
 
-function Field(props: { label: string; hint?: string; required?: boolean; error?: string; children: ReactNode }) {
+function Field(props: { label: string; hint?: string; required?: boolean; error?: string; unsure?: boolean; children: ReactNode }) {
   return (
     <label className={`field ${props.error ? 'field-invalid' : ''}`}>
       <span className="field-label">
         {props.label}
         {props.required && <span className="required"> *</span>}
+        {props.unsure && (
+          <span className="unsure" title="Model unsure — check against the photo">
+            {' '}● unsure
+          </span>
+        )}
         {props.hint && <span className="muted"> · {props.hint}</span>}
       </span>
       {props.children}

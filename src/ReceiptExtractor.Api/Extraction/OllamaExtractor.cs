@@ -13,9 +13,11 @@ public sealed class OllamaOptions
     public string Model { get; set; } = "qwen3-vl:8b-instruct";
     public string KeepAlive { get; set; } = "10m";   // keep the model loaded between receipts
     public int ContextLength { get; set; } = 8192;   // the image alone can take ~4000 tokens
+    /// <summary>Below this confidence a receipt goes to Needs review (eval/RESULTS.md). 0 = off. Same value in appsettings.json and demoApi.ts.</summary>
+    public double MinConfidence { get; set; } = 0.95;
 }
 
-public sealed record ExtractionResult(ReceiptFields Fields, string? Category, string ModelOutput);
+public sealed record ExtractionResult(ReceiptFields Fields, string? Category, string ModelOutput, Confidence? Confidence = null);
 
 public interface IReceiptExtractor
 {
@@ -110,6 +112,7 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
             model = opts.Model,
             stream = false,
             think = false,                 // answer directly, no "thinking" output
+            logprobs = true,               // token probabilities, for the confidence score
             keep_alive = opts.KeepAlive,
             format = Schema,
             options = new { temperature = 0, num_ctx = opts.ContextLength }, // same input -> same output
@@ -154,7 +157,8 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
         if (string.IsNullOrWhiteSpace(content))
             throw new ExtractionException($"Model returned no answer (done_reason={chat.DoneReason}).");
 
-        return ParseModelOutput(content);
+        var tokens = chat.Logprobs?.Select(t => new TokenLogprob(t.Token ?? "", t.Logprob, t.Bytes)).ToList();
+        return ParseModelOutput(content) with { Confidence = ConfidenceScorer.Score(content, tokens) };
     }
 
     /// <summary>Turns the model's JSON into clean fields. Public so it can be unit-tested without Ollama.</summary>
@@ -208,7 +212,13 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
 
     private sealed record ChatResponse(
         [property: JsonPropertyName("message")] ChatMessage? Message,
-        [property: JsonPropertyName("done_reason")] string? DoneReason);
+        [property: JsonPropertyName("done_reason")] string? DoneReason,
+        [property: JsonPropertyName("logprobs")] List<ChatLogprob>? Logprobs);
+
+    private sealed record ChatLogprob(
+        [property: JsonPropertyName("token")] string? Token,
+        [property: JsonPropertyName("logprob")] double Logprob,
+        [property: JsonPropertyName("bytes")] int[]? Bytes);
 
     private sealed record ChatMessage([property: JsonPropertyName("content")] string? Content);
 }

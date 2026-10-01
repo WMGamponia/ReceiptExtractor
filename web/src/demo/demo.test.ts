@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Receipt, ReceiptUpdate } from '../api'
 import { vatWarnings } from '../format'
 import { receiptsCsv } from './csv'
-import { demoApi, NEEDS_MODEL, PAGE_CLOSED, resetDemo, SAMPLE_PHOTOS, setLiveReader, UPLOAD_AGAIN } from './demoApi'
+import { demoApi, MIN_CONFIDENCE, NEEDS_MODEL, PAGE_CLOSED, resetDemo, SAMPLE_PHOTOS, setLiveReader, setMinConfidence, UPLOAD_AGAIN } from './demoApi'
 import type { LiveAnswer, LiveHints, LiveReader } from './liveReader'
 import { periodFor, summarize } from './periods'
 import { sampleReceipts } from './sampleReceipts'
@@ -34,7 +34,7 @@ const receipt = (over: Partial<Receipt>): Receipt => ({
   id: crypto.randomUUID(), name: '', status: 'Confirmed', merchant: 'DataBlitz', date: '2025-12-20', total: 100,
   vatAmount: null, vatableSales: null, vatExemptSales: null, discount: null, serviceCharge: null, category: 'Shopping', flags: [],
   corrections: [], extractionSeconds: null, error: null, originalFileName: 'x.jpg', uploadedAtUtc: '', confirmedAtUtc: null,
-  imageUrl: '', ...over,
+  imageUrl: '', confidence: null, fieldConfidence: {}, minConfidence: 0, ...over,
 })
 
 describe('summarize (mirrors SummaryEndpoints.cs)', () => {
@@ -370,6 +370,62 @@ describe('demoApi with the live demo', () => {
       await expect(next.demoApi.retryReceipt(r.id)).rejects.toMatchObject({ status: 409, message: UPLOAD_AGAIN })
     } finally {
       next.resetDemo()
+    }
+  })
+})
+
+describe('confidence (like ExtractionWorker)', () => {
+  afterEach(() => {
+    setLiveReader(undefined)
+    setMinConfidence(MIN_CONFIDENCE)
+    resetDemo()
+  })
+
+  const shaky: LiveAnswer = {
+    fields: { merchant: 'X', date: '2026-08-01', total: 112, vatAmount: 12, vatableSales: 100, vatExemptSales: 0, discount: 0, serviceCharge: 0, category: 'Food' },
+    extractionSeconds: 1,
+    confidence: { overall: 0.5, fields: { date: 0.99, total: 0.5 } },
+  }
+
+  async function readLive(answer: LiveAnswer) {
+    setLiveReader({ status: async () => ({ model: 'm', perVisitorPerHour: null }), read: async (_f, onStart) => (onStart() ? answer : null) })
+    const r = await demoApi.uploadReceipt(new File(['x'], 'mine.jpg', { type: 'image/jpeg' }))
+    await vi.waitFor(async () => expect((await demoApi.getReceipt(r.id)).status).not.toMatch(/Queued|Processing/))
+    return demoApi.getReceipt(r.id)
+  }
+
+  it('a shaky live read needs review', async () => {
+    setMinConfidence(0.85)
+    const r = await readLive(shaky)
+    expect(r).toMatchObject({ status: 'NeedsReview', confidence: 0.5, fieldConfidence: { total: 0.5 }, minConfidence: 0.85 })
+    expect(r.flags).toEqual(['The model was unsure about Total (50%). Check it against the photo.'])
+  })
+
+  it('no score from an older PC: no flag', async () => {
+    setMinConfidence(0.85)
+    const r = await readLive({ ...shaky, confidence: undefined })
+    expect(r).toMatchObject({ status: 'Extracted', confidence: null, fieldConfidence: {} })
+  })
+
+  it('old saved receipt without confidence still loads', async () => {
+    // Saved by a version without scores: same localStorage, new page load (like the closed-page test above).
+    const old = { ...(await demoApi.listReceipts())[0] } as Partial<Receipt>
+    delete old.confidence
+    delete old.fieldConfidence
+    delete old.minConfidence
+    const saved = new Map([['receipt-tracker-demo-v1', JSON.stringify([old])]])
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => saved.get(key) ?? null,
+      setItem: (key: string, value: string) => void saved.set(key, value),
+      removeItem: (key: string) => void saved.delete(key),
+    })
+    vi.resetModules()
+    const next = await import('./demoApi')
+    try {
+      expect(await next.demoApi.getReceipt(old.id!)).toMatchObject({ confidence: null, fieldConfidence: {}, minConfidence: MIN_CONFIDENCE })
+    } finally {
+      next.resetDemo()
+      vi.unstubAllGlobals()
     }
   })
 })

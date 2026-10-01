@@ -1,6 +1,7 @@
 // Typed client for the ASP.NET Core API (src/ReceiptExtractor.Api).
 // In dev, Vite proxies /api to http://localhost:5036 (see vite.config.ts), so no CORS setup is needed.
 // The demo site (`npm run build:demo`) has no API: there, `api` is demoApi, which works in the browser.
+import type { FieldConfidence } from './confidence'
 import { demoApi } from './demo/demoApi'
 
 export type ReceiptStatus = 'Queued' | 'Processing' | 'Extracted' | 'NeedsReview' | 'Confirmed' | 'Failed'
@@ -32,6 +33,9 @@ export interface Receipt {
   uploadedAtUtc: string
   confirmedAtUtc: string | null
   imageUrl: string
+  confidence: number | null // how sure the model was of the dates and amounts (lowest field); null = no score. Read-only.
+  fieldConfidence: FieldConfidence // per field, model JSON names; may be missing on demo receipts saved before scores
+  minConfidence: number // below this, the receipt was sent to review
 }
 
 export interface ReceiptUpdate {

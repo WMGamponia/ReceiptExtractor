@@ -134,16 +134,16 @@ def ocr_paddle(image_path: Path) -> str:
 # --- Running one approach ------------------------------------------------------
 
 def run(approach: str, image_path: Path, model: str):
-    """Returns (Receipt, ocr_text or None, ocr_seconds, total_seconds)."""
+    """Returns (Receipt, ocr_text or None, ocr_seconds, total_seconds, confidence or None for the OCR approaches)."""
     start = time.perf_counter()
     if approach == "vision":
-        result, _ = extract(image_path, model)
-        return result, None, 0.0, time.perf_counter() - start
+        result, _, confidence = extract(image_path, model)
+        return result, None, 0.0, time.perf_counter() - start, confidence
 
     ocr = ocr_tesseract if approach == "tesseract" else ocr_paddle
     text = ocr(image_path)
     ocr_seconds = time.perf_counter() - start
-    return parse_text(text, model), text, ocr_seconds, time.perf_counter() - start
+    return parse_text(text, model), text, ocr_seconds, time.perf_counter() - start, None
 
 
 # --- Comparing against the label ----------------------------------------------
@@ -171,7 +171,7 @@ def main() -> None:
     for approach in args.only:
         print(f"\n=== {approach} ===")
         try:
-            result, text, ocr_s, total_s = run(approach, args.image, args.model)
+            result, text, ocr_s, total_s, _ = run(approach, args.image, args.model)
         except Skip as why:
             print(f"skipped: {why}")
             continue

@@ -9,7 +9,7 @@ import json
 import unittest
 from pathlib import Path
 
-from run_eval import field_ok, merchant_ok, vat_check
+from run_eval import field_ok, merchant_ok, vat_check, with_kept_sections
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -63,3 +63,15 @@ class FieldTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResultsFileTests(unittest.TestCase):
+    def test_a_new_report_keeps_the_confidence_section(self):
+        # The calibration (eval/calibrate_confidence.py) is written by hand below the generated tables.
+        old = "# Extraction bake-off results\n\nold table\n\n## Confidence score\n\nthreshold table\n"
+        self.assertEqual(with_kept_sections("# Extraction bake-off results\n\nnew table\n", old),
+                         "# Extraction bake-off results\n\nnew table\n\n## Confidence score\n\nthreshold table\n")
+
+    def test_nothing_to_keep(self):
+        self.assertEqual(with_kept_sections("new\n", None), "new\n")
+        self.assertEqual(with_kept_sections("new\n", "old\n"), "new\n")

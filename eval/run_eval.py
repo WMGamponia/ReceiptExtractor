@@ -131,6 +131,17 @@ def vat_check(p: dict) -> str | None:
     return None
 
 
+
+# Hand-written sections below the generated tables, kept when the report is regenerated.
+KEPT_SECTIONS = "\n## Confidence score"
+
+
+def with_kept_sections(report: str, old: str | None) -> str:
+    """The new report plus the old file's confidence calibration (eval/calibrate_confidence.py), if it had one."""
+    start = (old or "").find(KEPT_SECTIONS)
+    return report if start < 0 else report + old[start:]
+
+
 # --- Dataset + cache -----------------------------------------------------------
 
 def load_dataset() -> list[tuple[Path, dict]]:
@@ -147,7 +158,7 @@ def load_dataset() -> list[tuple[Path, dict]]:
 
 def cache_key(approach: str, model: str, image: Path) -> str:
     h = hashlib.sha256()
-    for part in (approach, model, PROMPT, TEXT_PROMPT):
+    for part in (approach, model, PROMPT, TEXT_PROMPT, "confidence-v1"):
         h.update(part.encode())
     h.update(image.read_bytes())
     return h.hexdigest()[:16]
@@ -160,7 +171,7 @@ class Stale(Exception):
 def save_model_output(approach: str, image: Path, record: dict) -> None:
     """The committable part of a prediction: fields and timing, never the OCR text."""
     path = MODEL_OUTPUTS / approach / f"{image.stem}.json"
-    slim = {k: record[k] for k in ("key", "model", "prediction", "seconds")}
+    slim = {k: record[k] for k in ("key", "model", "prediction", "seconds", "confidence") if k in record}
     text = json.dumps(slim, indent=2, ensure_ascii=False) + "\n"
     if not path.exists() or path.read_text(encoding="utf-8") != text:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,12 +197,13 @@ def predict(approach: str, image: Path, model: str, fresh: bool) -> dict:
             save_model_output(approach, image, cached)
             return cached
 
-    result, text, ocr_s, total_s = run(approach, image, model)
+    result, text, ocr_s, total_s, confidence = run(approach, image, model)
     record = {
         "key": key,
         "model": model,
         "prediction": result.model_dump(),
         "seconds": round(total_s, 2),
+        "confidence": confidence,
         "ocr_seconds": round(ocr_s, 2),
         "ocr_text": text,
     }
@@ -290,7 +302,8 @@ def main() -> None:
     report = "\n".join(lines) + "\n"
     print("\n" + report)
     if not args.offline:
-        RESULTS_MD.write_text(report, encoding="utf-8")
+        old = RESULTS_MD.read_text(encoding="utf-8") if RESULTS_MD.exists() else None
+        RESULTS_MD.write_text(with_kept_sections(report, old), encoding="utf-8")
         print(f"Saved to {RESULTS_MD.relative_to(ROOT)}")
     if os.environ.get("GITHUB_STEP_SUMMARY"):  # show the table on the GitHub Actions run page
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary_md:

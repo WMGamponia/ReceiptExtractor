@@ -49,4 +49,18 @@ public class SyncTests
         Assert.NotEmpty(python);
         Assert.Equal(python, app);
     }
+
+    [Fact]
+    public void Confidence_threshold_is_the_same_everywhere()
+    {
+        // appsettings.json is what the app uses; the OllamaOptions default covers a missing setting; the demo site
+        // (no server) has its own copy in demoApi.ts.
+        var settings = JsonDocument.Parse(File.ReadAllText(RepoFile("src/ReceiptExtractor.Api/appsettings.json")))
+            .RootElement.GetProperty("Ollama").GetProperty("MinConfidence").GetDouble();
+        var demo = Regex.Match(File.ReadAllText(RepoFile("web/src/demo/demoApi.ts")), @"export const MIN_CONFIDENCE = ([0-9.]+)");
+
+        Assert.Equal(settings, new OllamaOptions().MinConfidence);
+        Assert.True(demo.Success, "MIN_CONFIDENCE not found in demoApi.ts");
+        Assert.Equal(settings, double.Parse(demo.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+    }
 }

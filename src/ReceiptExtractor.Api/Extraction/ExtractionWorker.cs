@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ReceiptExtractor.Api.Data;
 using ReceiptExtractor.Api.Validation;
 
@@ -65,6 +66,7 @@ public sealed class ExtractionWorker(
         using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var extractor = scope.ServiceProvider.GetRequiredService<IReceiptExtractor>();
+        var minConfidence = scope.ServiceProvider.GetRequiredService<IOptions<OllamaOptions>>().Value.MinConfidence;
 
         var receipt = await db.Receipts.FindAsync([id], ct);
         if (receipt is null || receipt.Status is ReceiptStatus.Confirmed)
@@ -94,8 +96,14 @@ public sealed class ExtractionWorker(
             if (hints.Count == 0 || receipt.ModelOutput is null)
                 receipt.ModelOutput = result.ModelOutput;
 
+            var confidence = ConfidenceGate.WithLocked(result.Confidence ?? Confidence.None, locked);
+            receipt.Confidence = confidence.Overall;
+            receipt.FieldConfidence = new(confidence.Fields);
+
             receipt.LockedFields = [];
             receipt.Flags = ReceiptValidator.Validate(fields, today);
+            if (ConfidenceGate.Flag(confidence, minConfidence) is { } unsure)
+                receipt.Flags.Add(unsure); // a shaky read is not "Ready to confirm"
             receipt.Status = receipt.Flags.Count > 0 ? ReceiptStatus.NeedsReview : ReceiptStatus.Extracted;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
