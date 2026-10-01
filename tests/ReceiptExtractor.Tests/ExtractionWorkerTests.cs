@@ -26,34 +26,38 @@ public sealed class ExtractionWorkerTests : IAsyncLifetime
             ExtractAsync([], hints, ct);
     }
 
-    private readonly SqliteConnection _connection = new("Data Source=:memory:");
+    // One in-memory database, but a connection per DbContext: the worker runs on another thread, and a SQLite
+    // connection can't be shared between threads. This connection only keeps the database alive.
+    private readonly string _database = $"Data Source=worker-{Guid.NewGuid():N};Mode=Memory;Cache=Shared";
+    private readonly SqliteConnection _keepAlive;
     private readonly FakeExtractor _extractor = new();
-    private readonly ExtractionQueue _queue = new();
     private ServiceProvider _services = null!;
-    private ExtractionWorker _worker = null!;
+    private ExtractionWorker? _worker;
 
-    public async Task InitializeAsync()
+    public ExtractionWorkerTests() => _keepAlive = new SqliteConnection(_database);
+
+    public Task InitializeAsync()
     {
-        _connection.Open();
+        _keepAlive.Open();
         var services = new ServiceCollection();
-        services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
+        services.AddDbContext<AppDbContext>(o => o.UseSqlite(_database));
         services.AddSingleton<IReceiptExtractor>(_extractor);
         services.Configure<OllamaOptions>(o => o.MinConfidence = 0.85);
         _services = services.BuildServiceProvider();
-        using (var scope = _services.CreateScope())
-            scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
-
-        _worker = new ExtractionWorker(_queue, _services.GetRequiredService<IServiceScopeFactory>(), TimeProvider.System,
-            NullLogger<ExtractionWorker>.Instance);
-        await _worker.StartAsync(CancellationToken.None);
+        using var scope = _services.CreateScope();
+        scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+        return Task.CompletedTask;
     }
 
     public async Task DisposeAsync()
     {
-        await _worker.StopAsync(CancellationToken.None);
-        _worker.Dispose();
+        if (_worker is not null)
+        {
+            await _worker.StopAsync(CancellationToken.None);
+            _worker.Dispose();
+        }
         await _services.DisposeAsync();
-        _connection.Dispose();
+        _keepAlive.Dispose();
     }
 
     private static Confidence Scored(double date, double total) =>
@@ -76,7 +80,11 @@ public sealed class ExtractionWorkerTests : IAsyncLifetime
             db.Receipts.Add(receipt);
             await db.SaveChangesAsync();
         }
-        await _queue.EnqueueAsync(id);
+
+        // Started after the receipt is saved: the worker picks up Queued receipts when it starts, exactly once.
+        _worker = new ExtractionWorker(new ExtractionQueue(), _services.GetRequiredService<IServiceScopeFactory>(),
+            TimeProvider.System, NullLogger<ExtractionWorker>.Instance);
+        await _worker.StartAsync(CancellationToken.None);
 
         for (var waited = 0; waited < 100; waited++)
         {
