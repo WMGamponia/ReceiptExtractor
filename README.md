@@ -146,13 +146,13 @@ The vision row is the latest run (2026-09-30, 18 receipts, the current prompt: V
 
 **Confidence score** (`eval/calibrate_confidence.py`, vision model, 18 receipts): how many misread dates and amounts each threshold catches, and how many fully right receipts it sends to review for nothing. 4 of the 15 misreads are on receipts the VAT/total checks pass.
 
-| Threshold | Misreads caught | Missed by checks, caught | Right receipts flagged |
-|---|---|---|---|
-| 0.85 | 6/15 | 1/4 | 1/10 |
-| 0.90 | 6/15 | 1/4 | 1/10 |
-| **0.95** (chosen) | **8/15** | **2/4** | **1/10** |
-| 0.97 | 12/15 | 3/4 | 1/10 |
-| 0.99 | 12/15 | 3/4 | 5/10 |
+| Threshold | Misreads caught | Missed by checks, caught | Receipts the checks pass, sent to review | Right receipts flagged |
+|---|---|---|---|---|
+| 0.85 | 6/15 | 1/4 | 1/4 | 1/10 |
+| 0.90 | 6/15 | 1/4 | 3/4 | 1/10 |
+| **0.95** (chosen) | **8/15** | **2/4** | **4/4** | **1/10** |
+| 0.97 | 12/15 | 3/4 | 4/4 | 1/10 |
+| 0.99 | 12/15 | 3/4 | 4/4 | 5/10 |
 
 Full table, the misread fields and why 0.95: [eval/RESULTS.md](eval/RESULTS.md#confidence-score).
 

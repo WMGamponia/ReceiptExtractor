@@ -35,17 +35,17 @@ From `python eval/calibrate_confidence.py` (2026-10-01, same 18 receipts). A fie
 least likely token; a receipt's is its lowest field (`ConfidenceScorer.cs`). 15 fields were misread, 4 of them on receipts
 the VAT/total checks didn't flag; 10 receipts were read fully right.
 
-| Threshold | Misreads caught | Missed by checks, caught | Right receipts flagged |
-|---|---|---|---|
-| 0.50 | 2/15 | 0/4 | 0/10 |
-| 0.60 | 3/15 | 0/4 | 0/10 |
-| 0.70 | 4/15 | 0/4 | 1/10 |
-| 0.80 | 5/15 | 0/4 | 1/10 |
-| 0.85 | 6/15 | 1/4 | 1/10 |
-| 0.90 | 6/15 | 1/4 | 1/10 |
-| **0.95** | **8/15** | **2/4** | **1/10** |
-| 0.97 | 12/15 | 3/4 | 1/10 |
-| 0.99 | 12/15 | 3/4 | 5/10 |
+| Threshold | Misreads caught | Missed by checks, caught | Receipts the checks pass, sent to review | Right receipts flagged |
+|---|---|---|---|---|
+| 0.50 | 2/15 | 0/4 | 0/4 | 0/10 |
+| 0.60 | 3/15 | 0/4 | 0/4 | 0/10 |
+| 0.70 | 4/15 | 0/4 | 0/4 | 1/10 |
+| 0.80 | 5/15 | 0/4 | 0/4 | 1/10 |
+| 0.85 | 6/15 | 1/4 | 1/4 | 1/10 |
+| 0.90 | 6/15 | 1/4 | 3/4 | 1/10 |
+| **0.95** | **8/15** | **2/4** | **4/4** | **1/10** |
+| 0.97 | 12/15 | 3/4 | 4/4 | 1/10 |
+| 0.99 | 12/15 | 3/4 | 4/4 | 5/10 |
 
 Misread fields and their confidence:
 
@@ -67,8 +67,9 @@ Misread fields and their confidence:
 | 0.999 | 20260821_BarbecueHouse | vat_amount | yes |
 | 0.999 | 20260821_BarbecueHouse | vatable_sales | yes |
 
-**Chosen: `Ollama:MinConfidence` = 0.95.** On this dataset 0.95 and 0.97 send the same 9 of 18 receipts to review
-(the checks alone send 4), but correctly read receipts score 0.980 and up, and the app scores a little lower than the
+**Chosen: `Ollama:MinConfidence` = 0.95** (the script's suggestion). The gate looks at a receipt's lowest field, so it
+counts receipts: at 0.95 all 4 receipts with a misread the checks miss go to review. 0.95 and 0.97 send the same 9 of
+18 receipts to review (the checks alone send 4), but correctly read receipts score 0.980 and up, and the app scores a little lower than the
 eval (its prompt also asks for the category: one right receipt scored 0.954 in the app, 0.980 here), so 0.97 would send
 right receipts to review. The one right receipt flagged at 0.95 scored 0.686. SR Membership's wrong date (0.999) is
 confidently wrong and no threshold catches it.

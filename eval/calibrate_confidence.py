@@ -32,31 +32,55 @@ def rows() -> list[dict]:
     return out
 
 
+def missed_by_checks(data: list[dict]) -> list[dict]:
+    """Receipts with a misread date/amount that the VAT/total checks let through: what the score is for."""
+    return [r for r in data if r["wrong"] and not r["checks_flag"]]
+
+
+def suggest(data: list[dict], thresholds: list[float]) -> float | None:
+    """
+    The threshold that sends the most check-missed misreads to review, minus the right receipts it sends for nothing.
+    Counted per receipt (the gate looks at a receipt's lowest field), and the lowest threshold wins a tie: the app's
+    scores run a little lower than the eval's (its prompt also asks for the category), so lower leaves more room.
+    """
+    all_right = [r for r in data if not r["wrong"]]
+    best = None
+    for t in sorted(thresholds):
+        new = sum(r["overall"] < t for r in missed_by_checks(data))
+        false_alarms = sum(r["overall"] < t for r in all_right)
+        if new == 0 or (all_right and false_alarms / len(all_right) > MAX_FALSE_ALARMS):
+            continue
+        if best is None or new - false_alarms > best[1]:
+            best = (t, new - false_alarms)
+    return best[0] if best else None
+
+
 def main() -> None:
     data = rows()
     wrong_fields = [(r, f) for r in data for f in r["wrong"]]
-    missed_by_checks = [(r, f) for r, f in wrong_fields if not r["checks_flag"]]
+    fields_missed = [(r, f) for r, f in wrong_fields if not r["checks_flag"]]
+    receipts_missed = missed_by_checks(data)
     all_right = [r for r in data if not r["wrong"]]
-    print(f"{len(data)} receipts, {len(wrong_fields)} misread fields ({len(missed_by_checks)} not caught by the checks), "
-          f"{len(all_right)} receipts fully right\n")
+    print(f"{len(data)} receipts, {len(wrong_fields)} misread fields ({len(fields_missed)} not caught by the checks, "
+          f"on {len(receipts_missed)} receipts), {len(all_right)} receipts fully right\n")
 
-    print("| Threshold | Misreads caught | Missed by checks, caught | Right receipts flagged |")
-    print("|---|---|---|---|")
-    best = None
+    print("| Threshold | Misreads caught | Missed by checks, caught | Receipts the checks pass, sent to review "
+          "| Right receipts flagged |")
+    print("|---|---|---|---|---|")
     for t in THRESHOLDS:
         caught = sum(r["fields"].get(f, 1) < t for r, f in wrong_fields)
-        new = sum(r["fields"].get(f, 1) < t for r, f in missed_by_checks)
+        new = sum(r["fields"].get(f, 1) < t for r, f in fields_missed)
+        new_receipts = sum(r["overall"] < t for r in receipts_missed)
         false_alarms = sum(r["overall"] < t for r in all_right)
-        fa_rate = false_alarms / len(all_right) if all_right else 0
-        print(f"| {t:.2f} | {caught}/{len(wrong_fields)} | {new}/{len(missed_by_checks)} | {false_alarms}/{len(all_right)} |")
-        if fa_rate <= MAX_FALSE_ALARMS and new > 0 and (best is None or new - false_alarms > best[1]):
-            best = (t, new - false_alarms)
+        print(f"| {t:.2f} | {caught}/{len(wrong_fields)} | {new}/{len(fields_missed)} "
+              f"| {new_receipts}/{len(receipts_missed)} | {false_alarms}/{len(all_right)} |")
 
     print("\nMisread fields and their confidence:")
     for r, f in sorted(wrong_fields, key=lambda x: x[0]["fields"].get(x[1], 1)):
         print(f"  {r['fields'].get(f, 1):.3f}  {r['name']}  {f}{'' if r['checks_flag'] else '  (checks missed it)'}")
 
-    print(f"\nSuggested MinConfidence: {best[0]}" if best else
+    best = suggest(data, THRESHOLDS)
+    print(f"\nSuggested MinConfidence: {best}" if best is not None else
           "\nNo threshold catches a misread the checks miss while flagging at most 20% of right receipts: "
           "the score doesn't separate right from wrong reads on this dataset. Stop and report.")
 
