@@ -24,6 +24,7 @@ public sealed record ReceiptResponse(
     decimal? VatableSales,
     decimal? VatExemptSales,
     decimal? Discount,
+    decimal? ServiceCharge,
     string? Category,
     IReadOnlyList<string> Flags,
     IReadOnlyList<string> Corrections,
@@ -36,7 +37,7 @@ public sealed record ReceiptResponse(
 {
     public static ReceiptResponse From(ReceiptRecord r) => new(
         r.Id, r.DisplayName, r.Status, r.Merchant, r.Date, r.Total, r.VatAmount, r.VatableSales,
-        r.VatExemptSales, r.Discount, r.Category, r.Flags, r.Corrections, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
+        r.VatExemptSales, r.Discount, r.ServiceCharge, r.Category, r.Flags, r.Corrections, r.ExtractionSeconds, r.Error, r.OriginalFileName, r.UploadedAtUtc,
         r.ConfirmedAtUtc, $"/api/receipts/{r.Id}/image");
 }
 
@@ -49,7 +50,8 @@ public sealed record ReceiptUpdate(
     decimal? VatableSales,
     decimal? VatExemptSales,
     decimal? Discount,
-    string? Category);
+    string? Category,
+    decimal? ServiceCharge = null); // 0 = none; null/missing on confirm keeps the stored value (a page from before the field)
 
 /// <summary>
 /// "Re-extract with my changes": the fields named in <see cref="Locked"/> (model JSON names, e.g. "total")
@@ -75,11 +77,13 @@ public sealed record ReextractRequest(ReceiptUpdate? Fields, IReadOnlyList<strin
             errors["category"] = [$"Category must be one of: {string.Join(", ", Categories.All)}."];
         if (locked.Contains(UserHints.VatExemptSales) && Fields.VatExemptSales < 0) errors["vatExemptSales"] = ["VAT-exempt sales can't be negative."];
         if (locked.Contains(UserHints.Discount) && Fields.Discount < 0) errors["discount"] = ["Enter the discount as a positive amount."];
+        if (locked.Contains(UserHints.ServiceCharge) && Fields.ServiceCharge < 0)
+            errors["serviceCharge"] = ["Enter the service charge as a positive amount."];
         if (errors.Count > 0)
             return (null, errors);
 
         var user = new ReceiptFields(MerchantRules.Normalize(Fields.Merchant), Fields.Date, Fields.Total,
-            Fields.VatAmount, Fields.VatableSales, Fields.VatExemptSales, Fields.Discount);
+            Fields.VatAmount, Fields.VatableSales, Fields.VatExemptSales, Fields.Discount, Fields.ServiceCharge);
         return (new Corrections(locked, user, category), errors);
     }
 }
@@ -278,12 +282,13 @@ public static class ReceiptEndpoints
         if (category is null) errors["category"] = [$"Category must be one of: {string.Join(", ", Categories.All)}."];
         if (update.VatExemptSales < 0) errors["vatExemptSales"] = ["VAT-exempt sales can't be negative."];
         if (update.Discount < 0) errors["discount"] = ["Enter the discount as a positive amount."];
+        if (update.ServiceCharge < 0) errors["serviceCharge"] = ["Enter the service charge as a positive amount."];
         if (errors.Count > 0)
             return TypedResults.ValidationProblem(errors);
 
         var fields = new ReceiptFields(
             MerchantRules.Normalize(update.Merchant), update.Date, update.Total, update.VatAmount, update.VatableSales,
-            update.VatExemptSales, update.Discount);
+            update.VatExemptSales, update.Discount, update.ServiceCharge ?? receipt.ServiceCharge);
         receipt.Corrections = DiffFromModel(receipt, fields, category);
         receipt.ApplyFields(fields, category);
 
@@ -498,6 +503,7 @@ public static class ReceiptEndpoints
         Compare("vatable_sales", extracted.VatableSales ?? 0m, confirmed.VatableSales ?? 0m, Money);
         Compare("vat_exempt_sales", extracted.VatExemptSales ?? 0m, confirmed.VatExemptSales ?? 0m, Money);
         Compare("discount", extracted.Discount ?? 0m, confirmed.Discount ?? 0m, Money);
+        Compare("service_charge", extracted.ServiceCharge ?? 0m, confirmed.ServiceCharge ?? 0m, Money);
         Compare("category", model.Category, category, Text);
         return changes;
     }

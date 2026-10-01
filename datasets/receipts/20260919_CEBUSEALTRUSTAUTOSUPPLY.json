@@ -1,0 +1,12 @@
+{
+  "merchant": "CEBU SEALTRUST AUTO SUPPLY",
+  "date": "2026-09-19",
+  "total": 300.00,
+  "vat_amount": 32.15,
+  "vatable_sales": 267.85,
+  "vat_exempt_sales": 0.00,
+  "discount": 0.00,
+  "service_charge": 0.00,
+  "category": "Transport",
+  "notes": "Handwritten, photo stored sideways (no EXIF rotation). 1 liter ATF."
+}

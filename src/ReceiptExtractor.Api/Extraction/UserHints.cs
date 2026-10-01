@@ -21,10 +21,11 @@ public static class UserHints
     public const string VatableSales = "vatable_sales";
     public const string VatExemptSales = "vat_exempt_sales";
     public const string Discount = "discount";
+    public const string ServiceCharge = "service_charge";
     public const string Category = "category";
 
     public static readonly string[] Fields =
-        [Merchant, Date, Total, VatAmount, VatableSales, VatExemptSales, Discount, Category];
+        [Merchant, Date, Total, VatAmount, VatableSales, VatExemptSales, Discount, ServiceCharge, Category];
 
     public static bool IsKnown(string field) => Fields.Contains(field);
 
@@ -48,7 +49,7 @@ public static class UserHints
         };
         lines.AddRange(hints.Select(h => $"- {h.Field}: {h.Value}"));
         lines.Add("Return them exactly as given, and use them to read the other fields correctly");
-        lines.Add("(VATable sales + VAT + VAT-exempt sales must add up to the total, before or after the discount).");
+        lines.Add("(VATable sales + VAT + VAT-exempt sales must add up to the total, before or after the discount and service charge).");
         return string.Join('\n', lines);
     }
 
@@ -60,7 +61,8 @@ public static class UserHints
         locked.Contains(VatAmount) ? user.VatAmount : model.VatAmount,
         locked.Contains(VatableSales) ? user.VatableSales : model.VatableSales,
         locked.Contains(VatExemptSales) ? user.VatExemptSales : model.VatExemptSales,
-        locked.Contains(Discount) ? user.Discount : model.Discount);
+        locked.Contains(Discount) ? user.Discount : model.Discount,
+        locked.Contains(ServiceCharge) ? user.ServiceCharge : model.ServiceCharge);
 
     private const string NotPrinted = "(not on the receipt)";
 
@@ -73,6 +75,7 @@ public static class UserHints
         VatableSales => Money(f.VatableSales ?? 0),
         VatExemptSales => Money(f.VatExemptSales ?? 0),
         Discount => Money(f.Discount ?? 0),
+        ServiceCharge => Money(f.ServiceCharge ?? 0),
         Category => category ?? "Other",
         _ => throw new ArgumentOutOfRangeException(nameof(field), field, "Unknown field."),
     };

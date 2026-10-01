@@ -35,6 +35,7 @@ class Receipt(BaseModel):
     vatable_sales: float | None = Field(description="VATable sales in PHP; 0 if non-VAT")
     vat_exempt_sales: float | None = Field(description="VAT-exempt sales in PHP; 0 if none")
     discount: float | None = Field(description="All discounts added up, positive, in PHP; 0 if none")
+    service_charge: float | None = Field(description="Service charge in PHP, positive; 0 if none (tips are not)")
 
 
 # 2. The instructions. Same prompt for every receipt, so results are comparable.
@@ -43,15 +44,19 @@ Copy amounts exactly as printed, including centavos (e.g. 1124.46)
 Extract these fields:
 - merchant: the store or company name as printed at the top. For online
   orders, the marketplace (e.g. Lazada, Shopee), not the seller's shop name
-- date: the transaction date, converted to YYYY-MM-DD
-- total: the final amount paid (TOTAL / AMOUNT DUE) after discounts, not cash tendered or change
-- vat_amount: the "VAT Amount" / "12% VAT" line; 0 if the receipt has none.
-  Not the "Less 12% VAT" / "Less VAT" line of a senior citizen / PWD computation
-  (that is VAT removed from exempt items, not VAT charged)
+- date: the transaction date, converted to YYYY-MM-DD. Not the dates in the printer's box at the
+  bottom (printer's accreditation, ATP, Date Issued) and not a PAID stamp. Numeric dates are
+  month first (9.10.26 is 2026-09-10), unless the year comes first (26/08/01 is 2026-08-01)
+- total: the final amount paid (TOTAL / AMOUNT DUE) after discounts, not the CASH (tendered) or CHANGE lines
+- vat_amount: the "VAT Amount" line of the VAT breakdown (next to VATable Sales); 0 if the
+  receipt has none or it reads 0.00. Never a "Less 12% VAT" / "Less VAT" line: on senior
+  citizen / PWD receipts that is VAT removed from exempt items, not VAT charged
 - vatable_sales: the "VATable Sales" line; 0 if the receipt has none
 - vat_exempt_sales: the "VAT-Exempt Sales" line; 0 if the receipt has none
 - discount: all discounts on the receipt added up (senior citizen, PWD, promo, etc.),
   as a positive number; 0 if there are none. "Less VAT" lines are not discounts
+- service_charge: the service charge line (often 10% at restaurants), as a positive
+  number; 0 if there is none. Tips are not a service charge
 Some receipts print the VAT breakdown as a tax table (Tax Code / RATE / Amount / TAX amt)
 instead of labeled lines: the V (12%) row's Amount is vatable_sales and its TAX is vat_amount,
 and the E (0%) row's Amount is vat_exempt_sales.

@@ -8,7 +8,8 @@ namespace ReceiptExtractor.Tests;
 public class ReceiptCsvTests
 {
     private static ReceiptRecord Receipt(string? merchant = "DataBlitz", decimal? total = 10495m, decimal? vat = 1124.46m,
-        decimal? vatable = 9370.54m, decimal? exempt = null, decimal? discount = null, string? category = "Shopping") => new()
+        decimal? vatable = 9370.54m, decimal? exempt = null, decimal? discount = null, string? category = "Shopping",
+        decimal? serviceCharge = null) => new()
     {
         OriginalFileName = "IMG_0001.jpg",
         ImagePath = "x.jpg",
@@ -21,6 +22,7 @@ public class ReceiptCsvTests
         VatableSales = vatable,
         VatExemptSales = exempt,
         Discount = discount,
+        ServiceCharge = serviceCharge,
         Category = category,
     };
 
@@ -31,8 +33,8 @@ public class ReceiptCsvTests
     {
         var lines = Lines(ReceiptCsv.Write([Receipt(), Receipt()]));
 
-        Assert.Equal("Date,Merchant,Category,Total,VAT,VATable sales,VAT-exempt sales,Discount,Receipt", lines[0]);
-        Assert.Equal("20251220,DataBlitz,Shopping,10495.00,1124.46,9370.54,,,2025-12-20_DataBlitz", lines[1]);
+        Assert.Equal("Date,Merchant,Category,Total,VAT,VATable sales,VAT-exempt sales,Discount,Service charge,Receipt", lines[0]);
+        Assert.Equal("20251220,DataBlitz,Shopping,10495.00,1124.46,9370.54,,,,2025-12-20_DataBlitz", lines[1]);
         Assert.Equal(lines[1], lines[2]);
         Assert.Equal(4, lines.Length);
         Assert.Equal("", lines[3]); // ends with a line break
@@ -45,9 +47,9 @@ public class ReceiptCsvTests
         CultureInfo.CurrentCulture = new CultureInfo("de-DE"); // would write 10495,00 and break the columns
         try
         {
-            var row = Lines(ReceiptCsv.Write([Receipt(total: 1234567.8m, exempt: 500m, discount: 100m)]))[1];
+            var row = Lines(ReceiptCsv.Write([Receipt(total: 1234567.8m, exempt: 500m, discount: 100m, serviceCharge: 50m)]))[1];
 
-            Assert.Contains(",1234567.80,1124.46,9370.54,500.00,100.00,", row);
+            Assert.Contains(",1234567.80,1124.46,9370.54,500.00,100.00,50.00,", row);
         }
         finally
         {
@@ -60,7 +62,7 @@ public class ReceiptCsvTests
     {
         var row = Lines(ReceiptCsv.Write([Receipt(merchant: null, vat: null, vatable: null, category: null)]))[1];
 
-        Assert.Equal("20251220,,,10495.00,,,,,2025-12-20", row);
+        Assert.Equal("20251220,,,10495.00,,,,,,2025-12-20", row);
     }
 
     [Theory]

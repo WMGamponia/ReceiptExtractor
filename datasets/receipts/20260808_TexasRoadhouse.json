@@ -1,0 +1,12 @@
+{
+  "merchant": "TEXAS ROADHOUSE",
+  "date": "2026-08-08",
+  "total": 6323.43,
+  "vat_amount": 361.34,
+  "vatable_sales": 3011.16,
+  "vat_exempt_sales": 3011.16,
+  "discount": 602.23,
+  "service_charge": 542.01,
+  "category": "Food",
+  "notes": "Senior discount; long receipt photographed from far. Company: BISTRO ITALIANO CORP."
+}

@@ -1,0 +1,15 @@
+{
+  "key": "a59bb1ded82160de",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "Pet Express",
+    "date": "2026-08-17",
+    "total": 1168.0,
+    "vat_amount": 125.13,
+    "vatable_sales": 1042.87,
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0,
+    "service_charge": 0.0
+  },
+  "seconds": 6.68
+}

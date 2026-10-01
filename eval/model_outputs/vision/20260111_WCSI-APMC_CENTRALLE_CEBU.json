@@ -1,14 +1,15 @@
 {
-  "key": "98ba16e7157daa11",
+  "key": "1c47cba92ca67428",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "WAL TER-APM CENTRALLE CEBU",
     "date": "2026-11-01",
     "total": 5190.0,
     "vat_amount": 0.0,
-    "vatable_sales": 5190.0,
+    "vatable_sales": 0.0,
     "vat_exempt_sales": 0.0,
-    "discount": 0.0
+    "discount": 0.0,
+    "service_charge": 0.0
   },
-  "seconds": 8.85
+  "seconds": 9.4
 }

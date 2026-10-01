@@ -1,0 +1,15 @@
+{
+  "key": "6f0d82fd042b9d42",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "Cebu PSI Hose Center",
+    "date": "2024-05-10",
+    "total": 250.0,
+    "vat_amount": 24.64,
+    "vatable_sales": 205.36,
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0,
+    "service_charge": 0.0
+  },
+  "seconds": 9.7
+}

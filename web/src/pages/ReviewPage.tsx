@@ -166,6 +166,7 @@ interface FormState {
   vatableSales: string
   vatExemptSales: string
   discount: string
+  serviceCharge: string
   category: string
 }
 
@@ -180,9 +181,10 @@ const amountsOf = (f: FormState): Amounts => ({
   vatable: parseMoney(f.vatableSales),
   exempt: parseMoney(f.vatExemptSales),
   discount: parseMoney(f.discount),
+  serviceCharge: parseMoney(f.serviceCharge),
 })
 
-/** Works out `field` from the other VAT field (plus total, exempt sales and discount). */
+/** Works out `field` from the other VAT field (plus total, exempt sales, discount and service charge). */
 const complementOf = (f: FormState, field: VatField) =>
   vatComplement(amountsOf(f), field === 'vatAmount' ? 'vatable' : 'vat')
 
@@ -195,6 +197,7 @@ const LOCKABLE: Record<keyof FormState, { name: LockableField; label: string; mo
   vatableSales: { name: 'vatable_sales', label: 'VATable sales', money: true },
   vatExemptSales: { name: 'vat_exempt_sales', label: 'VAT-exempt sales', money: true },
   discount: { name: 'discount', label: 'discount', money: true },
+  serviceCharge: { name: 'service_charge', label: 'service charge', money: true },
   category: { name: 'category', label: 'category', money: false },
 }
 
@@ -223,6 +226,7 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
     vatableSales: money(receipt.vatableSales),
     vatExemptSales: money(receipt.vatExemptSales),
     discount: money(receipt.discount),
+    serviceCharge: money(receipt.serviceCharge),
     category: receipt.category ?? '',
   }))
   const [form, setForm] = useState<FormState>(initial)
@@ -259,15 +263,15 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
     setAutoFilled(nextAuto)
   }
 
-  /** Total, VAT-exempt sales or discount changed: keep a filled-in VAT field in step. */
-  function setAmount(field: 'total' | 'vatExemptSales' | 'discount', value: string) {
+  /** Total, VAT-exempt sales, discount or service charge changed: keep a filled-in VAT field in step. */
+  function setAmount(field: 'total' | 'vatExemptSales' | 'discount' | 'serviceCharge', value: string) {
     const next = { ...form, [field]: value }
     if (autoFilled) next[autoFilled] = money(complementOf(next, autoFilled))
     setForm(next)
   }
 
   const amounts = amountsOf(form)
-  const { total, vat, vatable, exempt, discount } = amounts
+  const { total, vat, vatable, exempt, discount, serviceCharge } = amounts
   // No VAT lines read (faded receipt, or the model missed them): offer to split the VAT-inclusive total.
   const splitFromTotal = !vat && !vatable ? vatFromTotal(amounts) : null
 
@@ -287,6 +291,7 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
     vatableSales: vatable,
     vatExemptSales: exempt,
     discount,
+    serviceCharge: serviceCharge ?? 0, // 0, not null: the API keeps the stored value when it's null
     category: form.category || null,
   })
 
@@ -304,7 +309,7 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
   async function reextract() {
     setError(undefined)
     setFieldErrors({})
-    if ([total, vat, vatable, exempt, discount].some((n) => Number.isNaN(n))) {
+    if ([total, vat, vatable, exempt, discount, serviceCharge].some((n) => Number.isNaN(n))) {
       setError('Amounts must be numbers, e.g. 1,124.46')
       return
     }
@@ -324,7 +329,7 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
     setError(undefined)
     setFieldErrors({})
 
-    if ([total, vat, vatable, exempt, discount].some((n) => Number.isNaN(n))) {
+    if ([total, vat, vatable, exempt, discount, serviceCharge].some((n) => Number.isNaN(n))) {
       setError('Amounts must be numbers, e.g. 1,124.46')
       return
     }
@@ -382,12 +387,15 @@ function ReviewForm({ receipt, onSaved, onReextract }: ReviewFormProps) {
         </p>
       )}
 
+      <Field label="VAT-exempt sales (₱)" hint="e.g. SC / PWD" error={fieldError('vatExemptSales')}>
+        <MoneyInput value={form.vatExemptSales} onChange={(v) => setAmount('vatExemptSales', v)} />
+      </Field>
       <div className="field-pair">
-        <Field label="VAT-exempt sales (₱)" hint="e.g. SC / PWD" error={fieldError('vatExemptSales')}>
-          <MoneyInput value={form.vatExemptSales} onChange={(v) => setAmount('vatExemptSales', v)} />
-        </Field>
         <Field label="Discount (₱)" hint="all, added up" error={fieldError('discount')}>
           <MoneyInput value={form.discount} onChange={(v) => setAmount('discount', v)} />
+        </Field>
+        <Field label="Service charge (₱)" hint="e.g. 10% at restaurants" error={fieldError('serviceCharge')}>
+          <MoneyInput value={form.serviceCharge} onChange={(v) => setAmount('serviceCharge', v)} />
         </Field>
       </div>
 

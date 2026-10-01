@@ -20,7 +20,9 @@ public static class LabeledReceipts
         [property: JsonPropertyName("vat_amount")] decimal? VatAmount,
         [property: JsonPropertyName("vatable_sales")] decimal? VatableSales,
         [property: JsonPropertyName("vat_exempt_sales")] decimal? VatExemptSales,
-        decimal? Discount, string? Category);
+        decimal? Discount,
+        [property: JsonPropertyName("service_charge")] decimal? ServiceCharge,
+        string? Category);
 
     public static IReadOnlyList<SeedReceipt> Load(string datasetsFolder)
     {
@@ -40,7 +42,7 @@ public static class LabeledReceipts
 
             var label = JsonSerializer.Deserialize<Label>(File.ReadAllText(file), Json)!;
             var fields = new ReceiptFields(label.Merchant, label.Date, label.Total, label.VatAmount, label.VatableSales,
-                label.VatExemptSales, label.Discount);
+                label.VatExemptSales, label.Discount, label.ServiceCharge);
             receipts.Add(new SeedReceipt(fields, Categories.Normalize(label.Category) ?? "Other", Path.GetFileName(image), image));
         }
         return receipts;

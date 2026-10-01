@@ -8,7 +8,8 @@ public sealed record ReceiptFields(
     decimal? VatAmount,
     decimal? VatableSales,
     decimal? VatExemptSales = null, // e.g. senior citizen / PWD purchases
-    decimal? Discount = null);      // all discounts on the receipt added up, as a positive amount
+    decimal? Discount = null,       // all discounts on the receipt added up, as a positive amount
+    decimal? ServiceCharge = null); // e.g. a restaurant's 10% service charge, as a positive amount
 
 /// <summary>Categories from SCOPE.md.</summary>
 public static class Categories

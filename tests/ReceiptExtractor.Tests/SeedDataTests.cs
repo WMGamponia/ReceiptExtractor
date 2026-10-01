@@ -60,6 +60,9 @@ public class LabeledReceiptsTests : IDisposable
     private static string Datasets([CallerFilePath] string thisFile = "") =>
         Path.GetFullPath(Path.Combine(Path.GetDirectoryName(thisFile)!, "..", "..", "datasets"));
 
+    // The receipt's own printed numbers are wrong (see the label's notes), so the check rightly flags it.
+    private static readonly string[] ReceiptsThatDontAddUp = ["20260910_CebuPSIHoseCenter.jpg"];
+
     [Fact]
     public void Loads_every_labeled_receipt_in_the_repo_with_its_image()
     {
@@ -70,7 +73,11 @@ public class LabeledReceiptsTests : IDisposable
         {
             Assert.True(File.Exists(r.ImagePath), r.ImagePath);
             Assert.Contains(r.Category, Categories.All);
-            Assert.Empty(ReceiptValidator.Validate(r.Fields, new DateOnly(2026, 9, 30)));
+            var flags = ReceiptValidator.Validate(r.Fields, new DateOnly(2026, 9, 30));
+            if (ReceiptsThatDontAddUp.Contains(r.FileName))
+                Assert.NotEmpty(flags);
+            else
+                Assert.Empty(flags);
         });
     }
 
@@ -79,8 +86,16 @@ public class LabeledReceiptsTests : IDisposable
     {
         var dataBlitz = LabeledReceipts.Load(Datasets()).Single(r => r.FileName == "20251220_DataBlitz.jpg");
 
-        Assert.Equal(new ReceiptFields("DataBlitz", new DateOnly(2025, 12, 20), 10495.00m, 1124.46m, 9370.54m, 0m, 0m), dataBlitz.Fields);
+        Assert.Equal(new ReceiptFields("DataBlitz", new DateOnly(2025, 12, 20), 10495.00m, 1124.46m, 9370.54m, 0m, 0m, 0m), dataBlitz.Fields);
         Assert.Equal("Shopping", dataBlitz.Category);
+    }
+
+    [Fact]
+    public void Reads_the_service_charge()
+    {
+        var texasRoadhouse = LabeledReceipts.Load(Datasets()).Single(r => r.FileName == "20260808_TexasRoadhouse.jpg");
+
+        Assert.Equal(542.01m, texasRoadhouse.Fields.ServiceCharge);
     }
 
     [Fact]
@@ -148,7 +163,7 @@ public sealed class SeedDataTests : IDisposable
     }
 
     [Fact]
-    public void Labeled_receipts_wait_in_review_with_their_photos()
+    public void Labeled_receipts_wait_for_review_with_their_photos()
     {
         Seed();
 
@@ -157,7 +172,8 @@ public sealed class SeedDataTests : IDisposable
         Assert.Equal(LabeledReceipts.Load(Datasets()).Count, labeled.Count);
         Assert.All(labeled, r =>
         {
-            Assert.Equal(ReceiptStatus.Extracted, r.Status);
+            // Labels are real receipts: one whose own numbers don't add up waits in review like any other.
+            Assert.Equal(r.Flags.Count > 0 ? ReceiptStatus.NeedsReview : ReceiptStatus.Extracted, r.Status);
             Assert.Equal(Path.Combine(_storage, $"{r.Id}.jpg"), r.ImagePath);
             Assert.True(File.Exists(r.ImagePath));
             Assert.Equal("image/jpeg", r.ContentType);

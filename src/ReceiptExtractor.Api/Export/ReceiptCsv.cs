@@ -11,7 +11,7 @@ namespace ReceiptExtractor.Api.Export;
 public static class ReceiptCsv
 {
     private static readonly string[] Header =
-        ["Date", "Merchant", "Category", "Total", "VAT", "VATable sales", "VAT-exempt sales", "Discount", "Receipt"];
+        ["Date", "Merchant", "Category", "Total", "VAT", "VATable sales", "VAT-exempt sales", "Discount", "Service charge", "Receipt"];
 
     public static string Write(IEnumerable<ReceiptRecord> receipts)
     {
@@ -29,6 +29,7 @@ public static class ReceiptCsv
                 Money(r.VatableSales),
                 Money(r.VatExemptSales),
                 Money(r.Discount),
+                Money(r.ServiceCharge),
                 Text(r.DisplayName),
             ]);
         }

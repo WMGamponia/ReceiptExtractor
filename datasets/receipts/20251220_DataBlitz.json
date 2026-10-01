@@ -6,6 +6,7 @@
   "vatable_sales": 9370.54,
   "vat_exempt_sales": 0.00,
   "discount": 0.00,
+  "service_charge": 0.00,
   "category": "Shopping",
   "notes": ""
 }

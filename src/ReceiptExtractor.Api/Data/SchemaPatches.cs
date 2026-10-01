@@ -16,6 +16,7 @@ public static class SchemaPatches
         (nameof(ReceiptRecord.Discount), "TEXT NULL"),
         (nameof(ReceiptRecord.Corrections), "TEXT NOT NULL DEFAULT '[]'"),
         (nameof(ReceiptRecord.LockedFields), "TEXT NOT NULL DEFAULT '[]'"),
+        (nameof(ReceiptRecord.ServiceCharge), "TEXT NULL"),
     ];
 
     public static void Apply(AppDbContext db)

@@ -1,0 +1,12 @@
+{
+  "merchant": "PETRON BASAK PARDO SERVICE STATION",
+  "date": "2024-08-16",
+  "total": 2259.09,
+  "vat_amount": 242.05,
+  "vatable_sales": 2017.04,
+  "vat_exempt_sales": 0.00,
+  "discount": 0.00,
+  "service_charge": 0.00,
+  "category": "Fuel",
+  "notes": "Handwritten, photo stored sideways (no EXIF rotation). Date year hard to read (08/16/2?). Last digit of VATable under the pen mark; 2017.04 = 2259.09 / 1.12."
+}

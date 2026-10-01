@@ -27,7 +27,8 @@ public static class ReceiptValidator
             flags.Add($"Date {f.Date:yyyy-MM-dd} is in the future.");
 
         if (f.Total is { } total)
-            flags.AddRange(VatFlags(total, f.VatAmount ?? 0, f.VatableSales ?? 0, f.VatExemptSales ?? 0, f.Discount ?? 0));
+            flags.AddRange(VatFlags(total, f.VatAmount ?? 0, f.VatableSales ?? 0, f.VatExemptSales ?? 0, f.Discount ?? 0,
+                f.ServiceCharge ?? 0));
 
         return flags;
     }
@@ -35,22 +36,30 @@ public static class ReceiptValidator
     /// <summary>
     /// The VAT breakdown on a PH receipt adds up to the total:
     ///   VATable sales + VAT + VAT-exempt sales = total, or
-    ///   ... − discount = total   (senior citizen / PWD discounts are taken off after the breakdown).
-    /// Promo discounts are usually applied before the breakdown, so either form is accepted.
+    ///   ... − discount = total   (senior citizen / PWD discounts are taken off after the breakdown), and/or
+    ///   ... + service charge = total   (restaurants often add it after the breakdown).
+    /// Promo discounts and some service charges are already inside the breakdown, so every combination is accepted.
     /// </summary>
-    public static List<string> VatFlags(decimal total, decimal vat, decimal vatable, decimal exempt, decimal discount)
+    public static List<string> VatFlags(decimal total, decimal vat, decimal vatable, decimal exempt, decimal discount,
+        decimal serviceCharge = 0)
     {
         var flags = new List<string>();
         if (vat == 0 && vatable == 0 && exempt == 0)
             return flags; // no breakdown printed (non-VAT receipt): nothing to check
 
         var breakdown = vatable + vat + exempt;
-        var adds = Math.Abs(breakdown - total) <= Tolerance
-                   || (discount != 0 && Math.Abs(breakdown - discount - total) <= Tolerance);
+        decimal[] discounts = discount != 0 ? [0, discount] : [0];
+        decimal[] charges = serviceCharge != 0 ? [0, serviceCharge] : [0];
+        var adds = discounts.Any(d => charges.Any(s => Math.Abs(breakdown - d + s - total) <= Tolerance));
         if (!adds)
         {
             var parts = exempt != 0 ? "VATable sales + VAT + VAT-exempt sales" : "VATable sales + VAT";
-            var less = discount != 0 ? $" ({Peso.Format(breakdown - discount)} after the {Peso.Format(discount)} discount)" : "";
+            var tried = new List<string>();
+            if (discount != 0)
+                tried.Add($"{Peso.Format(breakdown - discount)} after the {Peso.Format(discount)} discount");
+            if (serviceCharge != 0)
+                tried.Add($"{Peso.Format(breakdown - discount + serviceCharge)} with the {Peso.Format(serviceCharge)} service charge");
+            var less = tried.Count > 0 ? $" ({string.Join(", ", tried)})" : "";
             flags.Add($"{parts} = {Peso.Format(breakdown)}{less}, but total is {Peso.Format(total)}.");
         }
 

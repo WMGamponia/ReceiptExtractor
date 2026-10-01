@@ -22,6 +22,7 @@ export interface Receipt {
   vatableSales: number | null
   vatExemptSales: number | null
   discount: number | null // all discounts added up, positive
+  serviceCharge: number | null // positive; e.g. a restaurant's 10%
   category: Category | null
   flags: string[]
   corrections: string[]
@@ -41,6 +42,7 @@ export interface ReceiptUpdate {
   vatableSales: number | null
   vatExemptSales: number | null
   discount: number | null
+  serviceCharge: number | null
   category: string | null
 }
 
@@ -53,6 +55,7 @@ export type LockableField =
   | 'vatable_sales'
   | 'vat_exempt_sales'
   | 'discount'
+  | 'service_charge'
   | 'category'
 
 export interface BulkDeleteResult {

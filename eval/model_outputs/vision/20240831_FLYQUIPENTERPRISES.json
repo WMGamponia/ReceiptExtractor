@@ -1,5 +1,5 @@
 {
-  "key": "21298247089dc820",
+  "key": "b14c07b0e8c375fa",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "FLYQUIP ENTERPRISES",
@@ -7,8 +7,9 @@
     "total": 27840.0,
     "vat_amount": 0.0,
     "vatable_sales": 0.0,
-    "vat_exempt_sales": 27840.0,
-    "discount": 0.0
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0,
+    "service_charge": 0.0
   },
-  "seconds": 8.8
+  "seconds": 9.2
 }

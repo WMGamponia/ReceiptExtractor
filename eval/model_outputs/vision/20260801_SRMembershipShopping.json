@@ -1,0 +1,15 @@
+{
+  "key": "f2b8d3f693448160",
+  "model": "qwen3-vl:8b-instruct",
+  "prediction": {
+    "merchant": "S&R MEMBERSHIP SHOPPING",
+    "date": "2021-08-26",
+    "total": 1499.0,
+    "vat_amount": 160.61,
+    "vatable_sales": 1338.39,
+    "vat_exempt_sales": 0.0,
+    "discount": 0.0,
+    "service_charge": 0.0
+  },
+  "seconds": 9.72
+}

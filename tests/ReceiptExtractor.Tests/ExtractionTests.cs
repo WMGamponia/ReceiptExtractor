@@ -88,6 +88,19 @@ public class ParseModelOutputTests
 
         Assert.Null(result.Fields.VatExemptSales);
         Assert.Null(result.Fields.Discount);
+        Assert.Null(result.Fields.ServiceCharge);
+    }
+
+    [Fact]
+    public void Reads_the_service_charge_as_a_positive_amount()
+    {
+        const string json = """
+            {"merchant":"TEXAS ROADHOUSE","date":"2026-08-08","total":6323.43,"vat_amount":361.34,"vatable_sales":3011.16,"vat_exempt_sales":3011.16,"discount":602.23,"service_charge":-542.01,"category":"Food"}
+            """;
+
+        var result = OllamaExtractor.ParseModelOutput(json);
+
+        Assert.Equal(542.01m, result.Fields.ServiceCharge);
     }
 
     [Fact]

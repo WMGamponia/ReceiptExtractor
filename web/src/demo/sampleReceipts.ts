@@ -58,7 +58,7 @@ export function sampleReceipts(today: string): ReceiptUpdate[] {
     const store = i < CATEGORY_ORDER.length ? STORES.find((s) => s.category === CATEGORY_ORDER[i])! : STORES[int(STORES.length)]
     const date = addDays(today, -int(365))
     const price = Math.round(store.min + random() * (store.max - store.min)) + int(4) * 0.25
-    const base = { merchant: store.merchant, date, category: store.category, vatExemptSales: null, discount: null }
+    const base = { merchant: store.merchant, date, category: store.category, vatExemptSales: null, discount: null, serviceCharge: null }
 
     if (store.category === 'Health' && int(3) === 0) {
       // Senior citizen / PWD: VAT-exempt, then 20% off (exempt − discount = total).

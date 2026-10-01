@@ -84,12 +84,21 @@ describe('vatWarnings (mirrors ReceiptValidator.cs)', () => {
 
   // Same cases as ReceiptValidator.VatFlags (C#) and vat_check (eval), so the three can't drift apart.
   it.each(vatCases.cases)('matches the shared case: $name', (c) =>
-    expect(vatWarnings({ total: c.total, vat: c.vat, vatable: c.vatable, exempt: c.exempt, discount: c.discount })).toHaveLength(
-      c.problems,
-    ))
+    expect(
+      vatWarnings({ total: c.total, vat: c.vat, vatable: c.vatable, exempt: c.exempt, discount: c.discount, serviceCharge: c.service_charge }),
+    ).toHaveLength(c.problems))
+
+  it('names the service charge when it still does not add up', () =>
+    expect(vatWarnings({ total: 1300, vat: 120, vatable: 1000, exempt: 0, discount: 0, serviceCharge: 100 })).toEqual([
+      'VATable sales + VAT = ₱1,120.00 (₱1,220.00 with the ₱100.00 service charge), but total is ₱1,300.00.',
+    ]))
 })
 
 describe('vatComplement', () => {
+  it('takes a service charge on top into account', () =>
+    expect(
+      vatComplement({ total: 6323.43, vat: 361.34, vatable: null, exempt: 3011.16, discount: 602.23, serviceCharge: 542.01 }, 'vat'),
+    ).toBe(3011.15))
   it('fills VATable sales from VAT', () => expect(vatComplement(amounts(10495, 1124.46, null), 'vat')).toBe(9370.54))
   it('fills VAT from VATable sales', () => expect(vatComplement(amounts(10495, null, 9370.54), 'vatable')).toBe(1124.46))
   it('takes VAT-exempt sales and the SC discount into account', () =>
@@ -111,6 +120,8 @@ describe('vatFromTotal (12% VAT included in the total)', () => {
   })
   it('leaves VAT-exempt sales out of the split', () =>
     expect(vatFromTotal(amounts(612, null, null, 500))).toEqual({ vat: 12, vatable: 100 }))
+  it('leaves out a service charge added on top', () =>
+    expect(vatFromTotal({ ...amounts(1220, null, null), serviceCharge: 100 })).toEqual({ vat: 120, vatable: 1000 }))
   it('needs a total', () => expect(vatFromTotal(amounts(null, null, null))).toBeNull())
   it('rejects junk', () => expect(vatFromTotal(amounts(NaN, null, null))).toBeNull())
   it('needs something left after exempt sales', () => expect(vatFromTotal(amounts(500, null, null, 500))).toBeNull())

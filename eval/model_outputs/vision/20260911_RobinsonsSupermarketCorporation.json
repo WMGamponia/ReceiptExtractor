@@ -1,5 +1,5 @@
 {
-  "key": "12c03bccee155309",
+  "key": "48744d18015d08a3",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "THE MARKETPLACE",
@@ -8,7 +8,8 @@
     "vat_amount": 98.36,
     "vatable_sales": 819.64,
     "vat_exempt_sales": 0.0,
-    "discount": 0.0
+    "discount": 0.0,
+    "service_charge": 0.0
   },
-  "seconds": 8.87
+  "seconds": 9.41
 }

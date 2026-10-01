@@ -77,7 +77,7 @@ Receipts uploaded before the model is ready can be retried with **Try again**.
 - **Port 5080** must be free (and 11434 if Ollama runs on your PC).
 - **Built for Philippine receipts:** peso amounts, 12% VAT included in the total, BIR-style receipts. Other countries' receipts will be read, but the VAT check won't make sense for them.
 - **JPG and PNG photos only** (no PDFs or HEIC).
-- **The model makes mistakes:** 86% of dates, merchants and totals are right on the 7 labeled receipts (a small sample; see [Known issues](#known-issues)). That's why every receipt goes through a review screen, and suspicious ones are flagged.
+- **The model makes mistakes:** 85% of dates, merchants and totals are right on the 18 labeled receipts (a small sample; see [Known issues](#known-issues)). That's why every receipt goes through a review screen, and suspicious ones are flagged.
 - **One user, no logins.** Anyone who can reach port 5080 sees every receipt, so don't expose it to the internet.
 - **Sample data is Docker only.** `dotnet run` and the Windows exe start with an empty database.
 - **The Windows exe is unsigned,** so SmartScreen warns the first time (**More info → Run anyway**).
@@ -110,6 +110,7 @@ It extracts these fields:
 | VATable sales | ₱9,370.54 |
 | VAT-exempt sales | ₱500.00 (e.g. senior citizen / PWD purchases) |
 | Discount | ₱100.00 (all discounts on the receipt, added up) |
+| Service charge | ₱542.01 (e.g. a restaurant's 10%; tips aren't included) |
 | Category | Shopping — one of Food, Groceries, Transport, Fuel, Health, Utilities, Shopping, Other (suggested by the model, you can change it) |
 
 Full scope and non-goals: [SCOPE.md](SCOPE.md).
@@ -122,7 +123,7 @@ This shows where your money went. It doesn't file anything with the BIR, compute
 
 **Why local-first:** receipts are personal data: names, addresses, TINs, what you bought and where. The app and the AI model both run on your own computer, so nothing gets sent to a cloud API. That also means no per-receipt API bill, but privacy is the main reason, not cost. The trade-off is the GPU requirement (see [Limitations](#limitations)).
 
-**How a receipt flows:** upload → saved to disk + DB row `Queued` → background worker sends the image to Ollama with a JSON schema → model output parsed and cleaned (e.g. "LAZADA Edifier" → "LAZADA") → checks run (VAT breakdown: VATable + VAT + VAT-exempt = total, or = total + discount for senior citizen / PWD discounts; VAT = 12% of VATable sales; date; total) → `Extracted`, or `NeedsReview` with reasons → user confirms/corrects → `Confirmed`. If a correction should change other fields too (e.g. the right VAT line), **Re-extract** keeps the corrected fields, tells the model they're correct, and re-reads the rest. The model's raw output is kept, so user corrections can later become new eval data.
+**How a receipt flows:** upload → saved to disk + DB row `Queued` → background worker sends the image to Ollama with a JSON schema → model output parsed and cleaned (e.g. "LAZADA Edifier" → "LAZADA") → checks run (VAT breakdown: VATable + VAT + VAT-exempt = total, allowing for a senior citizen / PWD discount and a restaurant service charge, each either after the breakdown or inside it; VAT = 12% of VATable sales; date; total) → `Extracted`, or `NeedsReview` with reasons → user confirms/corrects → `Confirmed`. If a correction should change other fields too (e.g. the right VAT line), **Re-extract** keeps the corrected fields, tells the model they're correct, and re-reads the rest. The model's raw output is kept, so user corrections can later become new eval data.
 
 ## Extraction bake-off
 
@@ -133,15 +134,15 @@ Before building anything, I compared two ways to pull these fields out of real r
 
 Both use the same model (`qwen3-vl:8b-instruct` via [Ollama](https://ollama.com)), prompt and JSON schema, so the only difference is *seeing the image* vs *reading OCR text*.
 
-**Results on hand-labeled receipts** (7 in the original bake-off, 8 now) (AMD Radeon RX 9070 XT):
+**Results on hand-labeled receipts** (7 in the original bake-off, 18 now) (AMD Radeon RX 9070 XT):
 
 | Approach | Merchant | Date | Total | VAT | Core accuracy¹ | Median | Slowest |
 |---|---|---|---|---|---|---|---|
-| **Vision model** | 75% | 88% | 100% | 100% | **88%** ✅ | 8.9s | 17.7s |
+| **Vision model** | 100% | 67% | 89% | 89% | **85%** ✅ | 9.5s | 17.9s |
 | Tesseract + LLM | 29% | 0% | 29% | 43% | 19% ❌ | 1.5s | 2.0s |
 
 ¹ Date + merchant + total. Target: ≥ 85%, under 30s per receipt. Full breakdown: [eval/RESULTS.md](eval/RESULTS.md).
-The vision row is the latest run (2026-09-30, 8 receipts, the current prompt: VAT-exempt sales, discount, tax tables, "Less VAT" lines and keeping the decimal point; the original bake-off scored 95%). The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
+The vision row is the latest run (2026-09-30, 18 receipts, the current prompt: VAT-exempt sales, discount, service charge, tax tables, "Less VAT" lines, keeping the decimal point, and the transaction date rather than the printer's dates; the original bake-off scored 95%). A merchant counts as right if it's the store or the company name; equivalent names are in `eval/merchant_aliases.json`. The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
 
 PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, but ~85s per receipt, because PaddleOCR can't use an AMD GPU on Windows.
 
@@ -152,14 +153,17 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **Two kinds of error need two kinds of fix.** *Reading* errors (bad OCR) need a better OCR engine or a better photo. *Understanding* errors (e.g. picking the BIR "Date of ATP" printer-permit date instead of the transaction date) are fixed in the prompt.
 - **PH receipts have a built-in checksum.** VAT is included in the total, so `vatable sales + VAT = total` and `VAT = total × 12/112`. Checking that flagged every bad Tesseract result and none of the vision results, so the app uses it to send suspicious receipts to review.
 - **Check what the model actually sees.** A phone photo read VAT as `10714` instead of `107.14`, but the same photo sent through Discord read fine. Phones save photos sideways with an EXIF tag saying how to turn them; browsers obey it, Ollama doesn't, so the model was reading the receipt on its side. The app now turns photos upright before sending them (`Extraction/PhotoOrientation.cs`, and the same in the eval), and that receipt is in the dataset. Its photo also carried the phone's GPS location, so dataset photos are now stripped of metadata (`eval/photo_metadata.py`) and a test fails on any with a location. Resizing turned out not to matter: the eval scored the same at 1536, 2048 and 4080 px.
+- **Restaurants add a service charge after the VAT breakdown.** Two of the new receipts (Texas Roadhouse, a barbecue house) only add up once the 10% service charge is counted, so it's now its own field and the VAT check allows it on top of the breakdown or inside it, like a discount. Guessing "a 5–10% gap is probably a service charge" would also have hidden real misreads.
+- **Handwritten receipts have more than one date.** The printed box at the bottom (printer's accreditation, ATP, "Date Issued") has dates too, and the model often took one of those. One prompt line fixed some of them, but the first wording also made the model read the gas-station demo receipt's CASH line as the total. A prompt change can break a field it doesn't mention, so the demo receipts are re-read and checked after every prompt change.
+- **A label in the prompt can match the wrong line.** The prompt asked for the "12% VAT" line, and the model took the pharmacy demo receipt's "Less 12% VAT" line, even though the next sentence said not to. Pointing at the breakdown instead ("the VAT Amount line, next to VATable Sales") fixed it, and also fixed a VAT-exempt misread in the eval.
 - **Prompts are suggestions; code is a rule.** Asking for "centavos exactly as printed" fixed dropped decimals, but the model still ignored a rule about marketplace names. Exact rules belong in code after extraction.
 
 ### Known issues
 
-- **Accuracy is one miss above the target.** Core accuracy is 88% against the 85% target, so the next prompt change that costs a field will fail CI. Teaching the model VAT-exempt sales and discounts cost some accuracy: the original bake-off scored 95%.
-- **Where it's wrong:** two merchant names (one misread, one with an extra word: "LAZADA Edifier"), one date with day and month swapped, and the VAT split on two receipts (the whole total put under VAT-exempt or VATable sales). The VAT check flags one of those. Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
+- **Accuracy is exactly at the target.** Core accuracy is 85% (46 of 54) against the 85% target, so the next prompt change that costs a field will fail CI. The 10 newer receipts (many handwritten) are harder: they score 77%, the original 8 score 96%.
+- **Where it's wrong:** dates on 6 receipts (handwritten ones, a faded one, day and month swapped on one, a YY/MM/DD date), two handwritten totals (`2259.09` read as `2259.89`, an overwritten `750` as `740`), and the VAT split on two receipts (the VAT check flags both). Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
 - **Decimal points in small VAT tables.** On a receipt with a Net / VAT / Gross table (not in the dataset yet), the model read `125.13` as `125` or `12513` depending on the image size. A prompt line ("Keep the decimal point") fixed it at every size, but a new layout could bring it back; the VAT check flags it when it does.
-- **Small sample.** Eight receipts, none with a real discount yet. The dataset is growing toward 30–50, including handwritten sari-sari receipts.
+- **Small sample.** 18 receipts; three have a discount and two a service charge, all restaurants. The dataset is growing toward 30–50.
 
 ## For developers
 

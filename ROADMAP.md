@@ -43,6 +43,7 @@ Steps to take the project from scope to finished.
 - [x] PHP formatting: ₱10,495.00 everywhere (also in backend messages, whatever the PC's region); amounts in the form with commas; buttons to move a misplaced decimal point
 - [x] VAT-inclusive math (12% baked into the total): "Work out VAT from the total" splits a total into VATable sales + VAT
 - [x] VAT-exempt sales and discounts (senior citizen / PWD): extracted, editable, included in the VAT check
+- [x] Service charge (restaurants): extracted, editable, in the CSV, counted in the VAT check on top of the breakdown or inside it
 - [x] Sensible local categories: Food, Groceries, Transport, Fuel, Health, Utilities, Shopping, Other, with PH examples in the prompt (Mercury Drug → Health, Petron → Fuel, Lazada → Shopping)
 - [x] CSV export for freelancers tracking expenses: **Export CSV** on the Spending page for the period shown (`GET /api/receipts/export.csv`), confirmed receipts, opens cleanly in Excel
 - [x] Keep it a tracker, not a tax tool (README: "A tracker, not a tax tool")
@@ -51,7 +52,7 @@ Steps to take the project from scope to finished.
 - [x] Windows: single `ReceiptTracker.exe` (API + web app) via `publish.cmd`; data stored next to the exe
 - [x] `docker compose up` starts the API + web app + SQLite (~1 GB download); `--profile ai` adds Ollama and downloads the model. Or point it at Ollama on the host (`OLLAMA_URL`) to use your GPU
 - [x] Model-pull script: `scripts/pull-model.ps1` / `.sh` (also run by the `ollama-pull` container)
-- [x] Seed data (Docker, empty database only): the 7 labeled receipts with photos wait in To review; 40 made-up receipts over the last 12 months are confirmed
+- [x] Seed data (Docker, empty database only): the labeled receipts (18 now) with photos wait in To review; 40 made-up receipts over the last 12 months are confirmed
 
 ## 8. Tests and CI ✅
 - [x] Unit tests for parsing and VAT math: xUnit, vitest and Python `unittest`; the three VAT checks share `tests/vat-cases.json`, and a test keeps the app's prompt identical to the eval's

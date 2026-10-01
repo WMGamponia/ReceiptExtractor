@@ -15,6 +15,7 @@ Upload → extract → review/correct → save → summaries
 | VAT         | No       | PHP, 2 decimals; 12% included in total; blank if non-VAT receipt |
 | VATable / VAT-exempt sales | No | PHP, 2 decimals; VAT-exempt covers senior citizen / PWD purchases |
 | Discount    | No       | PHP, 2 decimals; all discounts on the receipt added up (SC, PWD, promo) |
+| Service charge | No    | PHP, 2 decimals; positive (e.g. a restaurant's 10%); tips excluded |
 | Category    | Yes      | Auto-suggested, user can change (Food, Groceries, Transport, Fuel, Health, Utilities, Shopping, Other) |
 
 ## Record naming

@@ -8,7 +8,7 @@ public sealed class SchemaPatchesTests : IDisposable
 {
     // Columns added to ReceiptRecord after the first receipts.db files were created.
     private static readonly string[] AddedSinceFirstRelease =
-        ["VatExemptSales", "Discount", "Corrections", "LockedFields"];
+        ["VatExemptSales", "Discount", "Corrections", "LockedFields", "ServiceCharge"];
 
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
 

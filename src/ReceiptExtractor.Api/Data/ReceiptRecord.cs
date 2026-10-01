@@ -32,6 +32,7 @@ public sealed class ReceiptRecord
     public decimal? VatableSales { get; set; }
     public decimal? VatExemptSales { get; set; }
     public decimal? Discount { get; set; }
+    public decimal? ServiceCharge { get; set; }
     public string? Category { get; set; }
 
     /// <summary>Problems found by <see cref="ReceiptValidator"/>. Non-empty means "needs review".</summary>
@@ -54,7 +55,7 @@ public sealed class ReceiptRecord
     public DateTime? ConfirmedAtUtc { get; set; }
 
     [NotMapped]
-    public ReceiptFields Fields => new(Merchant, Date, Total, VatAmount, VatableSales, VatExemptSales, Discount);
+    public ReceiptFields Fields => new(Merchant, Date, Total, VatAmount, VatableSales, VatExemptSales, Discount, ServiceCharge);
 
     /// <summary>Record name from SCOPE.md: "&lt;Date&gt;_&lt;Merchant&gt;", "&lt;Date&gt;", or "Undated - &lt;upload time&gt;".</summary>
     [NotMapped]
@@ -74,6 +75,7 @@ public sealed class ReceiptRecord
         VatableSales = f.VatableSales;
         VatExemptSales = f.VatExemptSales;
         Discount = f.Discount;
+        ServiceCharge = f.ServiceCharge;
         Category = category;
     }
 }

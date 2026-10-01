@@ -2,7 +2,7 @@
 // amounts, dates as yyyyMMdd, and text cells that would run as a formula get a leading apostrophe.
 import type { Receipt } from '../api'
 
-const HEADER = ['Date', 'Merchant', 'Category', 'Total', 'VAT', 'VATable sales', 'VAT-exempt sales', 'Discount', 'Receipt']
+const HEADER = ['Date', 'Merchant', 'Category', 'Total', 'VAT', 'VATable sales', 'VAT-exempt sales', 'Discount', 'Service charge', 'Receipt']
 
 const money = (n: number | null) => (n == null ? '' : n.toFixed(2))
 const text = (s: string | null) => (s && '=+-@\t\r'.includes(s[0]) ? `'${s}` : (s ?? ''))
@@ -18,6 +18,7 @@ export function receiptsCsv(receipts: Receipt[]): string {
     money(r.vatableSales),
     money(r.vatExemptSales),
     money(r.discount),
+    money(r.serviceCharge),
     text(r.name),
   ])
   return [HEADER, ...rows].map((row) => row.map(quote).join(',') + '\r\n').join('')

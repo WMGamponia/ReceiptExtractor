@@ -78,6 +78,7 @@ export interface Amounts {
   vatable: number | null
   exempt: number | null
   discount: number | null
+  serviceCharge?: number | null // positive; on top of the breakdown or already inside it
 }
 
 const VAT_RATE = 0.12
@@ -87,24 +88,31 @@ const num = (n: number | null) => (n == null || Number.isNaN(n) ? 0 : n)
 
 /**
  * Same checks the backend runs (ReceiptValidator.VatFlags), so the review form can warn as you type.
- * VATable sales + VAT + VAT-exempt sales = total, or = total + discount (senior citizen / PWD
- * discounts are taken off after the breakdown); and VAT = 12% of VATable sales.
+ * VATable sales + VAT + VAT-exempt sales = total + discount − service charge (either may already be inside the
+ * breakdown: senior citizen / PWD discounts and restaurant service charges often come after it); and VAT = 12% of
+ * VATable sales.
  */
 export function vatWarnings(a: Amounts): string[] {
   const vat = num(a.vat)
   const vatable = num(a.vatable)
   const exempt = num(a.exempt)
   const discount = num(a.discount)
+  const serviceCharge = num(a.serviceCharge ?? null)
   if (a.total == null || Number.isNaN(a.total) || (vat === 0 && vatable === 0 && exempt === 0)) return []
   const total = a.total
 
   const warnings: string[] = []
   const breakdown = vatable + vat + exempt
-  const adds =
-    Math.abs(breakdown - total) <= TOLERANCE || (discount !== 0 && Math.abs(breakdown - discount - total) <= TOLERANCE)
+  const discounts = discount !== 0 ? [0, discount] : [0]
+  const charges = serviceCharge !== 0 ? [0, serviceCharge] : [0]
+  const adds = discounts.some((d) => charges.some((s) => Math.abs(breakdown - d + s - total) <= TOLERANCE))
   if (!adds) {
     const parts = exempt !== 0 ? 'VATable sales + VAT + VAT-exempt sales' : 'VATable sales + VAT'
-    const less = discount !== 0 ? ` (${formatPeso(breakdown - discount)} after the ${formatPeso(discount)} discount)` : ''
+    const tried: string[] = []
+    if (discount !== 0) tried.push(`${formatPeso(breakdown - discount)} after the ${formatPeso(discount)} discount`)
+    if (serviceCharge !== 0)
+      tried.push(`${formatPeso(breakdown - discount + serviceCharge)} with the ${formatPeso(serviceCharge)} service charge`)
+    const less = tried.length > 0 ? ` (${tried.join(', ')})` : ''
     warnings.push(`${parts} = ${formatPeso(breakdown)}${less}, but total is ${formatPeso(total)}.`)
   }
 
@@ -116,17 +124,19 @@ export function vatWarnings(a: Amounts): string[] {
 }
 
 /**
- * Given the total (and any VAT-exempt sales / discount) plus one of VAT or VATable sales, works out the other
- * so the breakdown adds up. With a discount it can go either way (see vatWarnings), so it picks the answer
+ * Given the total (and any VAT-exempt sales / discount / service charge) plus one of VAT or VATable sales, works out
+ * the other so the breakdown adds up. With a discount or service charge it can go either way (see vatWarnings), so it picks the answer
  * where VAT is closest to 12% of VATable sales. Null when it can't be worked out.
  */
 export function vatComplement(a: Amounts, known: 'vat' | 'vatable'): number | null {
   const value = a[known]
-  if (a.total == null || value == null || [a.total, value, a.exempt, a.discount].some((n) => Number.isNaN(n))) return null
+  if (a.total == null || value == null || [a.total, value, a.exempt, a.discount, a.serviceCharge].some((n) => Number.isNaN(n))) return null
   if (value <= 0) return null
 
   const base = a.total - num(a.exempt)
-  const bases = num(a.discount) > 0 ? [base, base + num(a.discount)] : [base]
+  const discounts = num(a.discount) > 0 ? [0, num(a.discount)] : [0]
+  const charges = num(a.serviceCharge ?? null) > 0 ? [0, num(a.serviceCharge ?? null)] : [0]
+  const bases = discounts.flatMap((d) => charges.map((s) => base + d - s))
 
   let best: { other: number; error: number } | null = null
   for (const b of bases) {
@@ -140,13 +150,14 @@ export function vatComplement(a: Amounts, known: 'vat' | 'vatable'): number | nu
 }
 
 /**
- * PH VAT is included in the total: VATable sales × 1.12 = total − VAT-exempt sales. Splits the total that way
- * when the receipt's VAT lines are missing or unreadable. VAT is whatever is left after rounding VATable sales,
- * so the two always add up exactly. Null when there's no usable total.
+ * PH VAT is included in the total: VATable sales × 1.12 = total − VAT-exempt sales − service charge (restaurants
+ * usually add it after the breakdown). Splits the total that way when the receipt's VAT lines are missing or
+ * unreadable. VAT is whatever is left after rounding VATable sales, so the two always add up exactly. Null when
+ * there's no usable total.
  */
 export function vatFromTotal(a: Amounts): { vat: number; vatable: number } | null {
-  if (a.total == null || Number.isNaN(a.total) || Number.isNaN(a.exempt ?? 0)) return null
-  const base = a.total - num(a.exempt)
+  if (a.total == null || Number.isNaN(a.total) || Number.isNaN(a.exempt ?? 0) || Number.isNaN(a.serviceCharge ?? 0)) return null
+  const base = a.total - num(a.exempt) - num(a.serviceCharge ?? null)
   if (base <= 0) return null
   const vatable = round2(base / (1 + VAT_RATE))
   return { vat: round2(base - vatable), vatable }
