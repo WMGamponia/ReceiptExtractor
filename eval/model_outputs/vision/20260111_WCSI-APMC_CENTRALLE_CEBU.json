@@ -1,5 +1,5 @@
 {
-  "key": "55981029fdc960f9",
+  "key": "1c47cba92ca67428",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "WAL TER-APM CENTRALLE CEBU",
@@ -11,5 +11,5 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.24
+  "seconds": 9.4
 }

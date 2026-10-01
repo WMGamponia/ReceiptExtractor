@@ -1,5 +1,5 @@
 {
-  "key": "84703f4c3fc1e57c",
+  "key": "fd67bd213db0b278",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "TRI-J Marketing Inc.",
@@ -11,5 +11,5 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.37
+  "seconds": 9.42
 }

@@ -1,5 +1,5 @@
 {
-  "key": "95a7efca6846137d",
+  "key": "5019ee22fb6f4ac3",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "JNTIU LPG STORE",
@@ -11,5 +11,5 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.41
+  "seconds": 9.53
 }

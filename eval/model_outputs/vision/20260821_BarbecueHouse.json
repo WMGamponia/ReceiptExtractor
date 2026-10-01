@@ -1,5 +1,5 @@
 {
-  "key": "096b65ee4ea47dc3",
+  "key": "5b06d44bb8d53578",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "ANUNCIACION A. MECHILL",
@@ -11,5 +11,5 @@
     "discount": 388.0,
     "service_charge": 590.81
   },
-  "seconds": 9.83
+  "seconds": 9.94
 }

@@ -1,5 +1,5 @@
 {
-  "key": "792654795cb8a5db",
+  "key": "48744d18015d08a3",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "THE MARKETPLACE",
@@ -11,5 +11,5 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.43
+  "seconds": 9.41
 }

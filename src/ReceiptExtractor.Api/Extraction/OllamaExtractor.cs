@@ -46,9 +46,9 @@ public sealed class OllamaExtractor(HttpClient http, IOptions<OllamaOptions> opt
           bottom (printer's accreditation, ATP, Date Issued) and not a PAID stamp. Numeric dates are
           month first (9.10.26 is 2026-09-10), unless the year comes first (26/08/01 is 2026-08-01)
         - total: the final amount paid (TOTAL / AMOUNT DUE) after discounts, not the CASH (tendered) or CHANGE lines
-        - vat_amount: the "VAT Amount" / "12% VAT" line; 0 if the receipt has none.
-          Not the "Less 12% VAT" / "Less VAT" line of a senior citizen / PWD computation
-          (that is VAT removed from exempt items, not VAT charged)
+        - vat_amount: the "VAT Amount" line of the VAT breakdown (next to VATable Sales); 0 if the
+          receipt has none or it reads 0.00. Never a "Less 12% VAT" / "Less VAT" line: on senior
+          citizen / PWD receipts that is VAT removed from exempt items, not VAT charged
         - vatable_sales: the "VATable Sales" line; 0 if the receipt has none
         - vat_exempt_sales: the "VAT-Exempt Sales" line; 0 if the receipt has none
         - discount: all discounts on the receipt added up (senior citizen, PWD, promo, etc.),

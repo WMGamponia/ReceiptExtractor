@@ -1,10 +1,10 @@
 # Extraction bake-off results
 
-2026-09-30 · model `qwen3-vl:8b-instruct` · 18 receipts
+2026-10-01 · model `qwen3-vl:8b-instruct` · 18 receipts
 
 | Approach | merchant | date | total | vat_amount | vatable_sales | vat_exempt_sales | discount | service_charge | Core (date, merchant, total) | Median s | Slowest s | VAT-check flags |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| vision | 100% | 67% | 89% | 89% | 83% | 89% | 94% | 100% | 85% ✅ | 9.5 | 18.6 ✅ | 4 |
+| vision | 100% | 67% | 89% | 89% | 83% | 94% | 94% | 100% | 85% ✅ | 9.5 | 17.9 ✅ | 4 |
 
 Targets from SCOPE.md: core accuracy ≥ 85%, under 30s per receipt.
 VAT-check flags = results whose VAT breakdown doesn't add up (would be sent to review).
@@ -16,7 +16,6 @@ VAT-check flags = results whose VAT breakdown doesn't add up (would be sent to r
 | vision | 20240816_PETRONBASAKPARDOSERVICESTATION | date | 2026-08-16 | 2024-08-16 |
 | vision | 20240816_PETRONBASAKPARDOSERVICESTATION | total | 2259.89 | 2259.09 |
 | vision | 20240816_PETRONBASAKPARDOSERVICESTATION | vatable_sales | 2017.0 | 2017.04 |
-| vision | 20240831_FLYQUIPENTERPRISES | vat_exempt_sales | 27840.0 | 0.0 |
 | vision | 20260111_WCSI-APMC_CENTRALLE_CEBU | date | 2026-11-01 | 2026-01-11 |
 | vision | 20260703_JNTIULPGSTORE | date | 2025-09-29 | 2026-07-03 |
 | vision | 20260801_SRMembershipShopping | date | 2021-08-26 | 2026-08-01 |
