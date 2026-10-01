@@ -55,7 +55,7 @@ const STORAGE_KEY = 'receipt-tracker-demo-v1'
 const PLACEHOLDER = '/demo/sample-receipt.png'
 const PRELOADED = ['botika-san-roque', 'petrolina-gas-station'] // waiting in "To review" on a first visit
 // Same as Ollama:MinConfidence in appsettings.json (SyncTests); the demo has no server to ask.
-export const MIN_CONFIDENCE = 0
+export const MIN_CONFIDENCE = 0.95
 let minConfidence = MIN_CONFIDENCE
 
 /** Tests: a threshold other than the shipped one. */

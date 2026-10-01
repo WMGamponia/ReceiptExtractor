@@ -1,5 +1,5 @@
 {
-  "key": "f2b8d3f693448160",
+  "key": "7321c65444aed6e6",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "S&R MEMBERSHIP SHOPPING",
@@ -11,5 +11,17 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.72
+  "seconds": 41.1,
+  "confidence": {
+    "overall": 0.856,
+    "fields": {
+      "date": 0.999,
+      "total": 0.856,
+      "vat_amount": 1.0,
+      "vatable_sales": 1.0,
+      "vat_exempt_sales": 1.0,
+      "discount": 1.0,
+      "service_charge": 1.0
+    }
+  }
 }

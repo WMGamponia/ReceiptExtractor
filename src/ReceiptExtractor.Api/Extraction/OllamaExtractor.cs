@@ -14,7 +14,7 @@ public sealed class OllamaOptions
     public string KeepAlive { get; set; } = "10m";   // keep the model loaded between receipts
     public int ContextLength { get; set; } = 8192;   // the image alone can take ~4000 tokens
     /// <summary>Below this confidence a receipt goes to Needs review (eval/RESULTS.md). 0 = off. Same value in appsettings.json and demoApi.ts.</summary>
-    public double MinConfidence { get; set; } = 0;
+    public double MinConfidence { get; set; } = 0.95;
 }
 
 public sealed record ExtractionResult(ReceiptFields Fields, string? Category, string ModelOutput, Confidence? Confidence = null);

@@ -21,6 +21,8 @@ from pathlib import Path
 import ollama
 from pydantic import BaseModel, Field
 
+from confidence import score
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LABEL_DIRS = [PROJECT_ROOT / "datasets" / "receipts", PROJECT_ROOT / "datasets" / "labels"]
 
@@ -80,13 +82,15 @@ def upright(image_path: Path) -> bytes:
         return out.getvalue()
 
 
-def extract(image_path: Path, model: str) -> tuple[Receipt, float]:
+def extract(image_path: Path, model: str) -> tuple[Receipt, float, dict]:
+    """The fields, the seconds the model took, and the confidence score (eval/confidence.py)."""
     start = time.perf_counter()
     resp = ollama.chat(
         model=model,
         messages=[{"role": "user", "content": PROMPT, "images": [upright(image_path)]}],
         format=Receipt.model_json_schema(),  # force the JSON shape
         think=False,                         # skip "thinking" mode; answer directly
+        logprobs=True,                       # token probabilities, for the confidence score
         options={
             "temperature": 0,  # same input -> same output
             "num_ctx": 8192,   # context window; the image alone can take ~4000 tokens
@@ -100,7 +104,8 @@ def extract(image_path: Path, model: str) -> tuple[Receipt, float]:
             f"Model returned no answer (done_reason={resp.done_reason!r}).\n"
             f"Thinking output (first 500 chars):\n{thinking or '(none)'}"
         )
-    return Receipt.model_validate_json(content), seconds
+    tokens = [{"token": t.token, "logprob": t.logprob, "bytes": getattr(t, "bytes", None)} for t in (resp.logprobs or [])]
+    return Receipt.model_validate_json(content), seconds, score(content, tokens)
 
 
 def find_label(image_path: Path) -> dict | None:
@@ -121,10 +126,10 @@ def main() -> None:
         raise SystemExit(f"Image not found: {args.image}")
 
     print(f"Model: {args.model}\nImage: {args.image}\nThinking...\n")
-    result, seconds = extract(args.image, args.model)
+    result, seconds, confidence = extract(args.image, args.model)
 
     print(json.dumps(result.model_dump(), indent=2))
-    print(f"\nTook {seconds:.1f}s")
+    print(f"\nTook {seconds:.1f}s, confidence {confidence['overall']}")
 
     label = find_label(args.image)
     if label is None:

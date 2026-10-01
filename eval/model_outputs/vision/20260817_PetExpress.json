@@ -1,5 +1,5 @@
 {
-  "key": "a59bb1ded82160de",
+  "key": "dafa9d6d67a55165",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "Pet Express",
@@ -11,5 +11,17 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 6.68
+  "seconds": 28.42,
+  "confidence": {
+    "overall": 0.995,
+    "fields": {
+      "date": 1.0,
+      "total": 0.999,
+      "vat_amount": 1.0,
+      "vatable_sales": 1.0,
+      "vat_exempt_sales": 0.995,
+      "discount": 1.0,
+      "service_charge": 1.0
+    }
+  }
 }

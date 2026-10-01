@@ -1,5 +1,5 @@
 {
-  "key": "47cc62095edf2cea",
+  "key": "a30a9b547af7c5c4",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "CEBU SEALTRUST AUTO SUPPLY",
@@ -11,5 +11,17 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 9.49
+  "seconds": 37.84,
+  "confidence": {
+    "overall": 0.495,
+    "fields": {
+      "date": 0.756,
+      "total": 0.997,
+      "vat_amount": 0.495,
+      "vatable_sales": 0.969,
+      "vat_exempt_sales": 0.999,
+      "discount": 1.0,
+      "service_charge": 1.0
+    }
+  }
 }

@@ -1376,7 +1376,7 @@ git commit -m "Demo: same confidence gate as the app, for sample and live reads"
 - Consumes: `eval/confidence.score`, `SCORED_FIELDS` (Task 2); `run_eval.load_dataset`, `field_ok`, `vat_check`.
 - Produces: model output records gain `"confidence": {"overall", "fields"}`; `extract(image, model) -> tuple[Receipt, float, dict]`.
 
-- [ ] **Step 1: Ask for logprobs in the eval**
+- [x] **Step 1: Ask for logprobs in the eval**
 
 `try_vision.extract` (add `from confidence import score` at the top):
 
@@ -1411,7 +1411,7 @@ Update every caller of `extract` and of `run` (`grep -n "extract(\|run(" eval/*.
 - `predict`: `result, text, ocr_s, total_s, confidence = run(approach, image, model)` and add `"confidence": confidence,` to `record`.
 - `save_model_output`: `slim = {k: record[k] for k in ("key", "model", "prediction", "seconds", "confidence") if k in record}`.
 
-- [ ] **Step 2: Re-run the vision eval**
+- [x] **Step 2: Re-run the vision eval**
 
 Ollama must be running with the model. Run: `.venv/Scripts/python eval/run_eval.py --only vision`
 Expected: all receipts re-read (about 20 s each), the core accuracy table is printed and is unchanged or within noise (≥ 85%). Every `eval/model_outputs/vision/*.json` now has a `confidence` object with a non-null `overall`. If any `overall` is null, the scorer rejected the tokens: print `content` and the joined tokens for that receipt and fix the scorer (adding the case to `tests/confidence-cases.json`) before going on.
@@ -1419,7 +1419,7 @@ Expected: all receipts re-read (about 20 s each), the core accuracy table is pri
 Then: `.venv/Scripts/python eval/run_eval.py --offline --only vision --check` (what CI runs).
 Expected: passes.
 
-- [ ] **Step 3: Calibration script**
+- [x] **Step 3: Calibration script**
 
 `eval/calibrate_confidence.py`:
 
@@ -1494,13 +1494,13 @@ if __name__ == "__main__":
 
 Make sure `MODEL_OUTPUTS` is a module-level name in `run_eval.py`. It's used by `save_model_output`, so it is.
 
-- [ ] **Step 4: Run it, then STOP and show the user**
+- [x] **Step 4: Run it, then STOP and show the user**
 
 Run: `.venv/Scripts/python eval/calibrate_confidence.py`
 
 **Checkpoint:** paste the table, the misread list and the suggestion to the user, and wait. If the script says "Stop and report", do not go on: explain what the numbers show and ask how to proceed (the spec's stop condition). Otherwise ask the user to confirm the suggested threshold or pick another one from the table.
 
-- [ ] **Step 5: Set the agreed threshold everywhere**
+- [x] **Step 5: Set the agreed threshold everywhere**
 
 Set the confirmed value (written below as `T`, e.g. `0.9`) in:
 - `src/ReceiptExtractor.Api/appsettings.json`: `"MinConfidence": T`
@@ -1510,7 +1510,7 @@ Set the confirmed value (written below as `T`, e.g. `0.9`) in:
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build"` and (in `web/`) `npm test`.
 Expected: all pass (SyncTests confirms the three agree).
 
-- [ ] **Step 6: Regenerate the demo answers**
+- [x] **Step 6: Regenerate the demo answers**
 
 Build and run the API in Production from a scratch folder, so it uses its own data folder and not the real `receipts.db`:
 
@@ -1522,7 +1522,7 @@ cd "$SCRATCH/demo-api" && ASPNETCORE_ENVIRONMENT=Production dotnet ReceiptExtrac
 (run it in the background), then `.venv/Scripts/python eval/make_demo_receipts.py read --api http://localhost:5080`, then stop the API and delete `$SCRATCH/demo-api`.
 Expected: `web/src/demo/model-answers.json` entries now have `confidence` and `fieldConfidence`. Run `npm test` in `web/` again: the existing tests that read the samples (`demo.test.ts`) must still pass. If a sample now lands in NeedsReview because of a low score, check whether a test expected `Extracted` for it, and tell the user about it rather than editing the expectation silently.
 
-- [ ] **Step 7: Results and README**
+- [x] **Step 7: Results and README**
 
 - `eval/RESULTS.md`: add a "Confidence score" section with the calibration table, the misread list (field names and scores only, no OCR text), the chosen threshold and one sentence on why.
 - `README.md`, per CLAUDE.md:
@@ -1532,7 +1532,7 @@ Expected: `web/src/demo/model-answers.json` entries now have `confidence` and `f
   - update "Last updated" to 2026-10-01.
 - `ROADMAP.md`: `grep -n -i "confidence" ROADMAP.md`. Tick any matching item. If there is none, leave the file alone.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add eval src/ReceiptExtractor.Api/appsettings.json src/ReceiptExtractor.Api/Extraction/OllamaExtractor.cs web/src/demo/demoApi.ts web/src/demo/model-answers.json README.md ROADMAP.md

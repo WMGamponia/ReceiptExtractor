@@ -1,5 +1,5 @@
 {
-  "key": "5b06d44bb8d53578",
+  "key": "1befa94fd951beac",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "ANUNCIACION A. MECHILL",
@@ -11,5 +11,17 @@
     "discount": 388.0,
     "service_charge": 590.81
   },
-  "seconds": 9.94
+  "seconds": 38.28,
+  "confidence": {
+    "overall": 0.595,
+    "fields": {
+      "date": 0.595,
+      "total": 1.0,
+      "vat_amount": 0.999,
+      "vatable_sales": 0.999,
+      "vat_exempt_sales": 0.952,
+      "discount": 0.614,
+      "service_charge": 0.998
+    }
+  }
 }
