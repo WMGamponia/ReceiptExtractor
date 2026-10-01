@@ -51,7 +51,7 @@
   - `public static class ConfidenceScorer { public static readonly string[] ScoredFields; public static Confidence Score(string json, IReadOnlyList<TokenLogprob>? tokens); }`
   - `tests/confidence-cases.json` with `"scorer"` cases (`name`, `content`, `tokens` [{`token`,`logprob`,`bytes`?}], `overall`, `fields`) and `"gate"` cases (added in Task 3).
 
-- [ ] **Step 1: Write the shared cases**
+- [x] **Step 1: Write the shared cases**
 
 `tests/confidence-cases.json`. The `exp` values are rounded to 3 decimals: exp(-0.5)=0.607, exp(-0.1)=0.905, exp(-2)=0.135, exp(-0.05)=0.951, exp(-1)=0.368, exp(0)=1.
 
@@ -134,7 +134,7 @@
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/ReceiptExtractor.Tests/ConfidenceScorerTests.cs`:
 
@@ -179,12 +179,12 @@ public sealed class ConfidenceScorerTests
 }
 ```
 
-- [ ] **Step 3: Run the tests to make sure they fail**
+- [x] **Step 3: Run the tests to make sure they fail**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build" --filter ConfidenceScorerTests`
 Expected: build error, `ConfidenceScorer` / `TokenLogprob` not found.
 
-- [ ] **Step 4: Implement the scorer**
+- [x] **Step 4: Implement the scorer**
 
 `src/ReceiptExtractor.Api/Extraction/ConfidenceScorer.cs`:
 
@@ -276,12 +276,12 @@ public static class ConfidenceScorer
 
 Note: `min = Math.Min(min ?? 0, …)` is right because logprobs are ≤ 0.
 
-- [ ] **Step 5: Run the tests to make sure they pass**
+- [x] **Step 5: Run the tests to make sure they pass**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build" --filter ConfidenceScorerTests`
 Expected: 8 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/confidence-cases.json src/ReceiptExtractor.Api/Extraction/ConfidenceScorer.cs tests/ReceiptExtractor.Tests/ConfidenceScorerTests.cs

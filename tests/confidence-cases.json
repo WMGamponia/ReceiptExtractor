@@ -1,0 +1,76 @@
+{
+  "_comment": "Shared by ConfidenceScorer/ConfidenceGate (C#), web/src/confidence.ts and eval/confidence.py. Logprobs are natural logs.",
+  "scorer": [
+    {
+      "name": "one shaky digit",
+      "content": "{\"date\": \"2026-08-29\", \"total\": 12.50}",
+      "tokens": [
+        {"token": "{\"", "logprob": 0}, {"token": "date", "logprob": 0}, {"token": "\": \"", "logprob": 0},
+        {"token": "2026", "logprob": 0}, {"token": "-08-", "logprob": -0.05}, {"token": "2", "logprob": -0.5},
+        {"token": "9", "logprob": 0}, {"token": "\", \"", "logprob": 0}, {"token": "total", "logprob": 0},
+        {"token": "\": ", "logprob": -3}, {"token": "12", "logprob": 0}, {"token": ".5", "logprob": -0.1},
+        {"token": "0", "logprob": 0}, {"token": "}", "logprob": -4}
+      ],
+      "overall": 0.607,
+      "fields": {"date": 0.607, "total": 0.905}
+    },
+    {
+      "name": "token straddling punctuation and value counts",
+      "content": "{\"total\":100}",
+      "tokens": [{"token": "{\"total", "logprob": 0}, {"token": "\":1", "logprob": -2}, {"token": "00}", "logprob": 0}],
+      "overall": 0.135,
+      "fields": {"total": 0.135}
+    },
+    {
+      "name": "null is scored, whitespace-only tokens are not",
+      "content": "{\"discount\": null,\n  \"service_charge\": 0}",
+      "tokens": [
+        {"token": "{\"discount\":", "logprob": 0}, {"token": " ", "logprob": -5}, {"token": "null", "logprob": -1},
+        {"token": ",\n", "logprob": 0}, {"token": "  ", "logprob": -5}, {"token": "\"service_charge\":", "logprob": 0},
+        {"token": " ", "logprob": -5}, {"token": "0", "logprob": 0}, {"token": "}", "logprob": 0}
+      ],
+      "overall": 0.368,
+      "fields": {"discount": 0.368, "service_charge": 1.0}
+    },
+    {
+      "name": "merchant and category are not scored",
+      "content": "{\"merchant\":\"ABC\",\"total\":5,\"category\":\"Food\"}",
+      "tokens": [
+        {"token": "{\"merchant\":\"", "logprob": 0}, {"token": "ABC", "logprob": -6}, {"token": "\",\"total\":", "logprob": 0},
+        {"token": "5", "logprob": -0.05}, {"token": ",\"category\":\"", "logprob": 0}, {"token": "Food", "logprob": -6},
+        {"token": "\"}", "logprob": 0}
+      ],
+      "overall": 0.951,
+      "fields": {"total": 0.951}
+    },
+    {
+      "name": "multibyte merchant",
+      "content": "{\"merchant\":\"Niño\",\"total\":7}",
+      "tokens": [
+        {"token": "{\"merchant\":\"Ni", "logprob": 0},
+        {"token": "�", "logprob": -1, "bytes": [195]},
+        {"token": "�", "logprob": -1, "bytes": [177]},
+        {"token": "o\",\"total\":", "logprob": 0},
+        {"token": "7", "logprob": -0.1},
+        {"token": "}", "logprob": 0}
+      ],
+      "overall": 0.905,
+      "fields": {"total": 0.905}
+    },
+    {
+      "name": "no tokens means no score",
+      "content": "{\"total\":5}",
+      "tokens": [],
+      "overall": null,
+      "fields": {}
+    },
+    {
+      "name": "tokens that don't rebuild the content mean no score",
+      "content": "{\"total\":5}",
+      "tokens": [{"token": "{\"total\":6}", "logprob": 0}],
+      "overall": null,
+      "fields": {}
+    }
+  ],
+  "gate": []
+}
