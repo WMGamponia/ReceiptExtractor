@@ -109,6 +109,12 @@ button:disabled { opacity: 0.6; cursor: default; }
   .badge-NeedsReview { color: #f5c46b; }
   .badge-Confirmed { color: #7ee2a0; }
 }
+.header-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+.badge-confidence { background: var(--border); color: var(--text); font-weight: 500; }
+.unsure { color: #9a6400; font-weight: 600; }
+@media (prefers-color-scheme: dark) {
+  .unsure { color: #f5c46b; }
+}
 .spinner {
   width: 0.7rem; height: 0.7rem; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
   animation: spin 0.8s linear infinite;

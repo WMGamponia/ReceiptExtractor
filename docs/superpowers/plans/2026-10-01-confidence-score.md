@@ -1107,7 +1107,7 @@ git commit -m "Web: confidence on Receipt, the gate and its shared cases in Type
 **Interfaces:**
 - Consumes: `formatConfidence`, `unsureFields`, `ScoredField` (Task 6); `todayIso` from `format.ts`.
 
-- [ ] **Step 1: Header badge**
+- [x] **Step 1: Header badge**
 
 In `ReviewPage`, next to `<StatusBadge status={receipt.status} />`:
 
@@ -1119,7 +1119,7 @@ In `ReviewPage`, next to `<StatusBadge status={receipt.status} />`:
         )}
 ```
 
-- [ ] **Step 2: Field marker**
+- [x] **Step 2: Field marker**
 
 Extend `Field`:
 
@@ -1146,7 +1146,7 @@ function Field(props: { label: string; hint?: string; required?: boolean; error?
 
 In `ReviewForm`, compute `const unsure = new Set(unsureFields(receipt))` and pass `unsure={unsure.has('date')}` on Date, `'total'` on Total, `'vat_amount'` on VAT, `'vatable_sales'` on VATable sales, `'vat_exempt_sales'` on VAT-exempt sales, `'discount'` on Discount and `'service_charge'` on Service charge.
 
-- [ ] **Step 3: "Use upload date"**
+- [x] **Step 3: "Use upload date"**
 
 Directly after the Date `<Field>…</Field>`:
 
@@ -1160,7 +1160,7 @@ Directly after the Date `<Field>…</Field>`:
 
 If `link-button` isn't an existing class (`grep -n "link-button\|button-link" web/src/index.css`), use the class the page already uses for its small secondary buttons (e.g. the "12% included" fill button near line 385).
 
-- [ ] **Step 4: List line**
+- [x] **Step 4: List line**
 
 In `ReceiptsPage.tsx`, after the issues count:
 
@@ -1168,7 +1168,7 @@ In `ReceiptsPage.tsx`, after the issues count:
                 {r.confidence != null && (r.status === 'Extracted' || r.status === 'NeedsReview') && ` · ${formatConfidence(r.confidence)}`}
 ```
 
-- [ ] **Step 5: Styles**
+- [x] **Step 5: Styles**
 
 `web/src/index.css`, after the `.badge-*` rules:
 
@@ -1182,7 +1182,7 @@ In `ReceiptsPage.tsx`, after the issues count:
 
 Match the variable names `index.css` already uses: check the `:root` block, and replace `--surface-2` with the muted-surface token it defines.
 
-- [ ] **Step 6: Verify in the browser**
+- [x] **Step 6: Verify in the browser**
 
 Start the dev setup (`.claude/launch.json` or `npm run dev` through preview_start; the API on :5036). Seed a low-confidence receipt by uploading a dataset photo (with `Ollama:MinConfidence` temporarily set to `0.99` in `appsettings.Development.json`, not committed). Check:
 - the badge shows "Confidence NN%",
@@ -1196,7 +1196,7 @@ Also check dark mode (resize_window colorScheme dark). Take a screenshot as proo
 Run (in `web/`): `npm test` and the type-check.
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/src/pages/ReviewPage.tsx web/src/pages/ReceiptsPage.tsx web/src/index.css

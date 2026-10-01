@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { api, isBusy, isDeletable, isReadyToConfirm, isSelectable, type Receipt } from '../api'
 import { ErrorBox, StatusBadge } from '../components'
+import { formatConfidence } from '../confidence'
 import { formatDate, formatPeso } from '../format'
 
 type Filter = 'todo' | 'confirmed' | 'all'
@@ -204,6 +205,7 @@ export function ReceiptsPage() {
                 {formatDate(r.date)}
                 {r.category && ` · ${r.category}`}
                 {r.flags.length > 0 && r.status === 'NeedsReview' && ` · ${r.flags.length} issue${r.flags.length > 1 ? 's' : ''}`}
+                {r.confidence != null && (r.status === 'Extracted' || r.status === 'NeedsReview') && ` · ${formatConfidence(r.confidence)}`}
               </span>
             </Link>
             <span className="amount">{formatPeso(r.total)}</span>
