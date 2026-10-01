@@ -49,7 +49,7 @@ PREDS = ROOT / "eval" / "preds"
 MODEL_OUTPUTS = ROOT / "eval" / "model_outputs"
 RESULTS_MD = ROOT / "eval" / "RESULTS.md"
 
-FIELDS = list(Receipt.model_fields)          # merchant, date, total, VAT fields, discount
+FIELDS = list(Receipt.model_fields)          # merchant, date, total, VAT fields, discount, service_charge
 CORE = ["date", "merchant", "total"]         # the fields SCOPE.md's 85% target is about
 CORE_TARGET = 0.85                           # SCOPE.md: >= 85% core accuracy
 IMAGE_EXTS = (".jpg", ".jpeg", ".png")
