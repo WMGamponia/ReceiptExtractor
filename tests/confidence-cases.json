@@ -72,5 +72,24 @@
       "fields": {}
     }
   ],
-  "gate": []
+  "gate": [
+    {"name": "above the threshold", "fields": {"date": 0.99, "total": 0.9}, "locked": [], "min": 0.85,
+     "overall": 0.9, "flag": null},
+    {"name": "exactly the threshold is not flagged", "fields": {"total": 0.85}, "locked": [], "min": 0.85,
+     "overall": 0.85, "flag": null},
+    {"name": "one field", "fields": {"date": 0.99, "total": 0.62}, "locked": [], "min": 0.85,
+     "overall": 0.62, "flag": "The model was unsure about Total (62%). Check it against the photo."},
+    {"name": "several fields in form order", "fields": {"vat_amount": 0.7, "date": 0.8, "total": 0.99, "service_charge": 0.5}, "locked": [], "min": 0.85,
+     "overall": 0.5, "flag": "The model was unsure about Date, VAT, Service charge (lowest 50%). Check them against the photo."},
+    {"name": "percent rounding", "fields": {"vatable_sales": 0.29, "vat_exempt_sales": 0.4, "discount": 0.3}, "locked": [], "min": 0.85,
+     "overall": 0.29, "flag": "The model was unsure about VATable sales, VAT-exempt sales, Discount (lowest 29%). Check them against the photo."},
+    {"name": "a locked field counts as sure", "fields": {"date": 0.99, "total": 0.5}, "locked": ["total", "merchant"], "min": 0.85,
+     "overall": 0.99, "flag": null},
+    {"name": "all locked", "fields": {"date": 0.4, "total": 0.5}, "locked": ["date", "total", "vat_amount", "vatable_sales", "vat_exempt_sales", "discount", "service_charge"], "min": 0.85,
+     "overall": 1.0, "flag": null},
+    {"name": "no score stays none", "fields": {}, "locked": ["total"], "min": 0.85,
+     "overall": null, "flag": null},
+    {"name": "threshold 0 turns the gate off", "fields": {"total": 0.01}, "locked": [], "min": 0,
+     "overall": 0.01, "flag": null}
+  ]
 }

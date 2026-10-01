@@ -433,7 +433,7 @@ git commit -m "Eval: Python copy of the confidence scorer on the shared cases"
   - `public static string? ConfidenceGate.Flag(Confidence c, double minConfidence)`
   - `public static string ConfidenceGate.Percent(double x)` returning e.g. `"62%"`
 
-- [ ] **Step 1: Fill the gate cases**
+- [x] **Step 1: Fill the gate cases**
 
 Replace `"gate": []` in `tests/confidence-cases.json` with:
 
@@ -462,7 +462,7 @@ Replace `"gate": []` in `tests/confidence-cases.json` with:
 
 The input `overall` is always the minimum of `fields` (or null when `fields` is empty). The case's `overall` is the value expected **after** `WithLocked`.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/ReceiptExtractor.Tests/ConfidenceGateTests.cs`:
 
@@ -496,12 +496,12 @@ public sealed class ConfidenceGateTests
 }
 ```
 
-- [ ] **Step 3: Run them to make sure they fail**
+- [x] **Step 3: Run them to make sure they fail**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build" --filter ConfidenceGateTests`
 Expected: build error, `ConfidenceGate` not found.
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 `src/ReceiptExtractor.Api/Extraction/ConfidenceGate.cs`:
 
@@ -549,12 +549,12 @@ public static class ConfidenceGate
 }
 ```
 
-- [ ] **Step 5: Run them to make sure they pass**
+- [x] **Step 5: Run them to make sure they pass**
 
 Run: `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build" --filter "ConfidenceGateTests|ConfidenceScorerTests"`
 Expected: all passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/confidence-cases.json src/ReceiptExtractor.Api/Extraction/ConfidenceGate.cs tests/ReceiptExtractor.Tests/ConfidenceGateTests.cs
