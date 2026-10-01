@@ -1547,7 +1547,7 @@ git commit -m "Eval: confidence scores on every read, calibrated MinConfidence"
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Add the sync rules**
+- [x] **Step 1: Add the sync rules**
 
 Under "Project facts", after the VAT-checks line in the Frontend bullet, add:
 
@@ -1559,7 +1559,7 @@ Under "Project facts", after the VAT-checks line in the Frontend bullet, add:
   prompt change.
 ```
 
-- [ ] **Step 2: Full verification**
+- [x] **Step 2: Full verification**
 
 Run:
 - `dotnet test tests/ReceiptExtractor.Tests --artifacts-path "$SCRATCH/build"`
@@ -1569,7 +1569,7 @@ Run:
 
 Expected: everything passes.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add CLAUDE.md
