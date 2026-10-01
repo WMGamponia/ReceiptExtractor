@@ -1,5 +1,5 @@
 {
-  "key": "8fe30df2f3f81d56",
+  "key": "4aaef715bfe5f32b",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "JNTIU LPG STORE",
@@ -11,15 +11,15 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 40.13,
+  "seconds": 9.52,
   "confidence": {
-    "overall": 0.92,
+    "overall": 0.508,
     "fields": {
-      "date": 0.92,
-      "total": 0.96,
-      "vat_amount": 0.999,
-      "vatable_sales": 0.993,
-      "vat_exempt_sales": 0.987,
+      "date": 0.508,
+      "total": 0.99,
+      "vat_amount": 0.998,
+      "vatable_sales": 0.998,
+      "vat_exempt_sales": 0.988,
       "discount": 1.0,
       "service_charge": 1.0
     }

@@ -1,27 +1,27 @@
 {
-  "key": "1befa94fd951beac",
+  "key": "b8cb72202fc50434",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
-    "merchant": "ANUNCIACION A. MECHILL",
-    "date": "2026-03-21",
+    "merchant": "ANUNCIACION A. MECCHILL",
+    "date": "2026-02-21",
     "total": 6498.91,
     "vat_amount": 233.21,
     "vatable_sales": 1943.45,
     "vat_exempt_sales": 5441.67,
-    "discount": 388.0,
+    "discount": 388.81,
     "service_charge": 590.81
   },
-  "seconds": 38.28,
+  "seconds": 10.04,
   "confidence": {
-    "overall": 0.595,
+    "overall": 0.478,
     "fields": {
-      "date": 0.595,
+      "date": 0.478,
       "total": 1.0,
-      "vat_amount": 0.999,
-      "vatable_sales": 0.999,
-      "vat_exempt_sales": 0.952,
-      "discount": 0.614,
-      "service_charge": 0.998
+      "vat_amount": 0.998,
+      "vatable_sales": 0.989,
+      "vat_exempt_sales": 0.89,
+      "discount": 0.646,
+      "service_charge": 1.0
     }
   }
 }

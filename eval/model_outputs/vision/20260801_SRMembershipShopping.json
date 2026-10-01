@@ -1,9 +1,9 @@
 {
-  "key": "7321c65444aed6e6",
+  "key": "005e11f721e5f7ba",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "S&R MEMBERSHIP SHOPPING",
-    "date": "2021-08-26",
+    "date": "2026-08-01",
     "total": 1499.0,
     "vat_amount": 160.61,
     "vatable_sales": 1338.39,
@@ -11,12 +11,12 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 41.1,
+  "seconds": 9.86,
   "confidence": {
-    "overall": 0.856,
+    "overall": 0.948,
     "fields": {
-      "date": 0.999,
-      "total": 0.856,
+      "date": 0.948,
+      "total": 1.0,
       "vat_amount": 1.0,
       "vatable_sales": 1.0,
       "vat_exempt_sales": 1.0,
