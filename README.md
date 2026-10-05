@@ -138,23 +138,23 @@ Both use the same model (`qwen3-vl:8b-instruct` via [Ollama](https://ollama.com)
 
 | Approach | Merchant | Date | Total | VAT | Core accuracy¹ | Median | Slowest |
 |---|---|---|---|---|---|---|---|
-| **Vision model** | 100% | 67% | 89% | 89% | **85%** ✅ | 9.5s | 17.9s |
+| **Vision model** | 100% | 72% | 89% | 89% | **87%** ✅ | 9.6s | 19.5s |
 | Tesseract + LLM | 29% | 0% | 29% | 43% | 19% ❌ | 1.5s | 2.0s |
 
 ¹ Date + merchant + total. Target: ≥ 85%, under 30s per receipt. Full breakdown: [eval/RESULTS.md](eval/RESULTS.md).
-The vision row is the latest run (2026-09-30, 18 receipts, the current prompt: VAT-exempt sales, discount, service charge, tax tables, "Less VAT" lines, keeping the decimal point, and the transaction date rather than the printer's dates; the original bake-off scored 95%). A merchant counts as right if it's the store or the company name; equivalent names are in `eval/merchant_aliases.json`. The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
+The vision row is the latest run (2026-10-01, 18 receipts, photos with personal details painted over, the current prompt: VAT-exempt sales, discount, service charge, tax tables, "Less VAT" lines, keeping the decimal point, and the transaction date rather than the printer's dates; the original bake-off scored 95%). A merchant counts as right if it's the store or the company name; equivalent names are in `eval/merchant_aliases.json`. The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
 
-**Confidence score** (`eval/calibrate_confidence.py`, vision model, 18 receipts): how many misread dates and amounts each threshold catches, and how many fully right receipts it sends to review for nothing. 4 of the 15 misreads are on receipts the VAT/total checks pass.
+**Confidence score** (`eval/calibrate_confidence.py`, vision model, 18 receipts): how many misread dates and amounts each threshold catches, and how many fully right receipts it sends to review for nothing. 3 of the 14 misreads are on receipts the VAT/total checks pass.
 
 | Threshold | Misreads caught | Missed by checks, caught | Receipts the checks pass, sent to review | Right receipts flagged |
 |---|---|---|---|---|
-| 0.85 | 6/15 | 1/4 | 1/4 | 1/10 |
-| 0.90 | 6/15 | 1/4 | 3/4 | 1/10 |
-| **0.95** (chosen) | **8/15** | **2/4** | **4/4** | **1/10** |
-| 0.97 | 12/15 | 3/4 | 4/4 | 1/10 |
-| 0.99 | 12/15 | 3/4 | 4/4 | 5/10 |
+| 0.85 | 7/14 | 2/3 | 2/3 | 1/11 |
+| 0.90 | 8/14 | 2/3 | 3/3 | 1/11 |
+| **0.95** (chosen) | **9/14** | **2/3** | **3/3** | **2/11** |
+| 0.97 | 11/14 | 3/3 | 3/3 | 2/11 |
+| 0.99 | 13/14 | 3/3 | 3/3 | 6/11 |
 
-Full table, the misread fields and why 0.95: [eval/RESULTS.md](eval/RESULTS.md#confidence-score).
+0.95 was picked on the first run; since the dataset photos were redacted the script suggests 0.90 (same receipts caught, one fewer right one flagged). Full table, the misread fields and why 0.95: [eval/RESULTS.md](eval/RESULTS.md#confidence-score).
 
 PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, but ~85s per receipt, because PaddleOCR can't use an AMD GPU on Windows.
 
@@ -168,7 +168,7 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **Restaurants add a service charge after the VAT breakdown.** Two of the new receipts (Texas Roadhouse, a barbecue house) only add up once the 10% service charge is counted, so it's now its own field and the VAT check allows it on top of the breakdown or inside it, like a discount. Guessing "a 5–10% gap is probably a service charge" would also have hidden real misreads.
 - **Handwritten receipts have more than one date.** The printed box at the bottom (printer's accreditation, ATP, "Date Issued") has dates too, and the model often took one of those. One prompt line fixed some of them, but the first wording also made the model read the gas-station demo receipt's CASH line as the total. A prompt change can break a field it doesn't mention, so the demo receipts are re-read and checked after every prompt change.
 - **A label in the prompt can match the wrong line.** The prompt asked for the "12% VAT" line, and the model took the pharmacy demo receipt's "Less 12% VAT" line, even though the next sentence said not to. Pointing at the breakdown instead ("the VAT Amount line, next to VATable Sales") fixed it, and also fixed a VAT-exempt misread in the eval.
-- **The model knows when it's guessing, mostly.** Its token probabilities put most misread dates and amounts well below the right ones (right receipts score 0.98+, most misreads under 0.95), so a low score now sends a receipt to review even when the VAT math adds up. Not always: one wrong date scored 0.999. The score is the least likely token of each value, not an average, because one shaky digit is the misread that matters.
+- **The model knows when it's guessing, mostly.** Its token probabilities put most misread dates and amounts well below the right ones (most right receipts score 0.98+, most misreads under 0.95), so a low score now sends a receipt to review even when the VAT math adds up. Not always: one wrong date scored 0.999 (that photo now reads right), and one right receipt scored 0.686. The score is the least likely token of each value, not an average, because one shaky digit is the misread that matters.
 - **Prompts are suggestions; code is a rule.** Asking for "centavos exactly as printed" fixed dropped decimals, but the model still ignored a rule about marketplace names. Exact rules belong in code after extraction.
 
 ### Known issues

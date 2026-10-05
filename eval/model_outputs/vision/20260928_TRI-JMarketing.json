@@ -1,5 +1,5 @@
 {
-  "key": "35298f855489dcc2",
+  "key": "10767a02646dcb21",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "TRI-J Marketing Inc.",
@@ -11,13 +11,13 @@
     "discount": 0.0,
     "service_charge": 0.0
   },
-  "seconds": 37.3,
+  "seconds": 9.43,
   "confidence": {
-    "overall": 0.831,
+    "overall": 0.799,
     "fields": {
-      "date": 0.995,
-      "total": 0.831,
-      "vat_amount": 1.0,
+      "date": 1.0,
+      "total": 0.799,
+      "vat_amount": 0.999,
       "vatable_sales": 1.0,
       "vat_exempt_sales": 1.0,
       "discount": 1.0,
