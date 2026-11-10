@@ -12,77 +12,6 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 **Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 
-## Try it
-
-**Quickest (nothing to install):** open **https://receipt-tracker-demo.pages.dev**. It runs in your browser with made-up receipts, and the sample photos under **Add** replay the real model's answers. Uploading **your own** receipt photo there only works while my PC is online running the [live demo](docs/live-demo.md#read-on-the-authors-pc-live-demo-on-demand) (the model reads it on my PC, and nothing is kept); the rest of the time the site says so and you can use the samples.
-
-**On your own PC (needs [Docker Desktop](https://www.docker.com/products/docker-desktop/)):** how long it takes depends on how far you go:
-
-| | Takes about | You get |
-|---|---|---|
-| **1. The app with sample data** (below) | ~5 minutes once Docker Desktop is installed (~1 GB download) | Every screen, 47 sample receipts to review and chart. Your own photos can't be read yet |
-| **2. Reading your own receipts** ([below](#reading-your-own-receipts)) | Another 6 GB model download (~10 min at 100 Mbps), plus installing Ollama if you use it outside Docker | Uploads read in ~10–20s each on a good GPU, **minutes each on a CPU** |
-
-If Docker Desktop isn't installed yet, add its install (on Windows it may also set up WSL 2 and ask you to restart).
-
-**Step-by-step guides** (installing Docker, troubleshooting, checking the GPU is used): [Windows](docs/install/windows.md) · [Linux](docs/install/linux.md) · [NVIDIA GPU](docs/install/nvidia-gpu.md) · [AMD GPU](docs/install/amd-gpu.md). The quick version is below.
-
-Run these in a terminal. **`docker compose` must be run from the project's root folder** (the `ReceiptExtractor` folder that contains `docker-compose.yml`), not from a subfolder like `web` or `src`:
-
-```bash
-git clone https://github.com/WMGamponia/ReceiptExtractor.git
-cd ReceiptExtractor          # the project root: docker-compose.yml is here
-docker compose up --build
-```
-
-If you see `no configuration file provided: not found`, you're in the wrong folder: `cd` into `ReceiptExtractor` and try again. All the `docker compose` commands below are run from the same folder.
-
-Then open **http://localhost:5080**. The first build takes a few minutes. What you'll see:
-
-- **Receipts:** 7 real receipts (TINs redacted) waiting for review. Open one to see the photo next to the extracted fields and the VAT check, then confirm it.
-- **Spending:** 40 made-up receipts from the past year, with totals by category, a chart, and **Export CSV**.
-- **Add:** uploading **your own photo won't work yet.** It fails with "Can't reach Ollama" because this command starts the app without the AI model. To have uploads read, see [Reading your own receipts](#reading-your-own-receipts) below.
-
-Stop it with `docker compose down`, or `docker compose down -v` to also delete the data.
-
-### Reading your own receipts
-
-The app sends each photo to a vision model running on your PC through [Ollama](https://ollama.com). This is the slow part of the setup: the model is a 6 GB download, and without a supported GPU each receipt takes minutes (see [Limitations](#limitations)). If you just want to see the model at work, the [demo site](https://receipt-tracker-demo.pages.dev)'s sample photos replay its real answers. Pick one:
-
-| Your PC | Do this | Speed per receipt |
-|---|---|---|
-| **Has a GPU** (NVIDIA, AMD Radeon, or an Apple Silicon Mac): recommended | 1. Install [Ollama](https://ollama.com/download) on your PC (not in Docker).<br>2. `ollama pull qwen3-vl:8b-instruct` (6 GB, once).<br>3. `OLLAMA_URL=http://host.docker.internal:11434 docker compose up --build`<br>(PowerShell: `$env:OLLAMA_URL="http://host.docker.internal:11434"; docker compose up --build`) | ~10–20s (9s median on an AMD RX 9070 XT) |
-| **Has no GPU** (or you don't want to install anything besides Docker) | `docker compose --profile ai up --build`. It also runs Ollama in Docker and downloads the 6 GB model once (`docker compose logs -f ollama-pull` shows progress) | **Minutes**: it runs on the CPU |
-
-**Why Ollama on the PC for a GPU:** Docker Desktop on Windows and macOS can't give containers an AMD or Apple GPU, so Ollama in Docker would fall back to the CPU. Ollama installed on the PC uses the GPU directly. For AMD it uses ROCm: install a current AMD Adrenalin driver, and check that your card is on [Ollama's supported GPU list](https://docs.ollama.com/gpu) (Radeon RX 7000 and 9000 series; my RX 9070 XT works on Windows even though the list only shows it for Linux). Ollama may also use other GPUs through Vulkan, but I haven't tried that. To confirm the GPU is being used, run `ollama ps` while a receipt is being read: it should say `100% GPU`. Details for each card and system: [NVIDIA GPU](docs/install/nvidia-gpu.md), [AMD GPU](docs/install/amd-gpu.md) (Linux users can also run Ollama in Docker on the GPU; both guides explain how).
-
-Receipts uploaded before the model is ready can be retried with **Try again**.
-
-### What you need
-
-| Software | Needed for | Required? |
-|---|---|---|
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows needs WSL 2, which Docker's installer sets up) | Running the app | **Yes** (or the .NET/Node tools below) |
-| A modern browser (Chrome, Edge, Firefox, Safari) | Using the app | **Yes** |
-| [Ollama](https://ollama.com) + the `qwen3-vl:8b-instruct` model | Reading uploaded receipts | Only to read your own photos (can also run inside Docker with `--profile ai`) |
-| Git | Cloning the repo | Or download the ZIP from GitHub |
-| [.NET 10 SDK](https://dotnet.microsoft.com/download) + [Node.js 20+](https://nodejs.org) | Running without Docker, or building the Windows exe | Only for development |
-| Python 3.12 (+ optionally Tesseract) | The extraction eval | Only to re-run the bake-off |
-
-### Limitations
-
-- **The AI model needs a capable GPU.** Receipts take ~10–20s each on a desktop GPU (tested on an AMD RX 9070 XT) and **minutes on a CPU**: even the smaller `qwen3-vl:2b-instruct` took 99s per receipt in Docker on a 24-thread CPU (and missed the date). The GPU has to be one Ollama supports (recent NVIDIA, AMD or Apple Silicon). Running the model on a cloud service would drop this requirement, but receipt photos would leave your machine; it's an idea for later, not built.
-- **Docker Desktop on Windows can't use an AMD GPU.** On an AMD Windows PC, install Ollama itself and use the `OLLAMA_URL` command above. The NVIDIA/AMD GPU files for the Ollama container (`docker-compose.nvidia.yml`, `docker-compose.amd.yml`) haven't been tested.
-- **Memory and disk:** about 1 GB for the app image, plus 6 GB for the model and ~8 GB of RAM to run it in Docker.
-- **Port 5080** must be free (and 11434 if Ollama runs on your PC).
-- **Built for Philippine receipts:** peso amounts, 12% VAT included in the total, BIR-style receipts. Other countries' receipts will be read, but the VAT check won't make sense for them.
-- **JPG and PNG photos only** (no PDFs or HEIC).
-- **The model makes mistakes:** 85% of dates, merchants and totals are right on the 18 labeled receipts (a small sample; see [Known issues](#known-issues)). That's why every receipt goes through a review screen, and suspicious ones are flagged.
-- **One user, no logins.** Anyone who can reach port 5080 sees every receipt, so don't expose it to the internet.
-- **Sample data is Docker only.** `dotnet run` and the Windows exe start with an empty database.
-- **The Windows exe is unsigned,** so SmartScreen warns the first time (**More info → Run anyway**).
-- **Installing it as a phone app needs HTTPS**, which the local app doesn't have. Opening it in the phone's browser on the same Wi-Fi works.
-
 ## What this project shows
 
 - **The approach was chosen by testing, not guessing.** Before building the app, I hand-labeled real receipts and compared OCR + LLM against a vision model on them: 19% vs 86% core accuracy ([bake-off](#extraction-bake-off)).
@@ -91,6 +20,28 @@ Receipts uploaded before the model is ready can be retried with **Try again**.
 - **Built for how models fail.** Extraction runs in a background queue with live status; a VAT checksum and date checks send suspicious receipts to review; corrections can be locked and the rest re-read.
 - **One rule, three languages, one set of tests.** The VAT check exists in C#, TypeScript and Python, and all three run against the same cases in `tests/vat-cases.json`.
 - **Shipped three ways:** `docker compose up` with sample data, a single-file Windows exe, and a static demo site that replays real model answers.
+
+## Try it
+
+**In your browser (nothing to install):** open **https://receipt-tracker-demo.pages.dev**. It runs with made-up receipts, and the sample photos under **Add** replay the real model's answers. Your own photo only gets read while my PC is running the [live demo](docs/live-demo.md#read-on-the-authors-pc-live-demo-on-demand) (the model reads it on my PC and nothing is kept); the rest of the time the site says so.
+
+**On your own PC** (needs [Docker Desktop](https://www.docker.com/products/docker-desktop/)), from a terminal:
+
+```bash
+git clone https://github.com/WMGamponia/ReceiptExtractor.git
+cd ReceiptExtractor
+docker compose up --build
+```
+
+After a few minutes' first build (~1 GB download), open **http://localhost:5080**: every screen, with 18 real receipts (personal details painted over) waiting for review and 40 made-up ones on the Spending page. Reading **your own** photos also needs the AI model, a 6 GB download that reads a receipt in ~10–20s on a supported GPU and takes minutes on a CPU. Step-by-step guides, including troubleshooting: [Windows](docs/install/windows.md) · [Linux](docs/install/linux.md), then [NVIDIA GPU](docs/install/nvidia-gpu.md) · [AMD GPU](docs/install/amd-gpu.md).
+
+### Limitations
+
+- **The AI model needs a capable GPU.** Receipts take ~10–20s each on a desktop GPU (tested on an AMD RX 9070 XT) and **minutes on a CPU**. Running the model on a cloud service would drop this requirement, but receipt photos would leave your machine; it's an idea for later, not built.
+- **Built for Philippine receipts:** peso amounts, 12% VAT included in the total, BIR-style receipts. JPG and PNG photos only (no PDFs or HEIC).
+- **The model makes mistakes:** 85% of dates, merchants and totals are right on the 18 labeled receipts (a small sample; see [Known issues](#known-issues)). That's why every receipt goes through a review screen, and suspicious ones are flagged.
+- **One user, no logins.** Anyone who can reach port 5080 sees every receipt, so don't expose it to the internet.
+- **Installing it as a phone app needs HTTPS**, which the local app doesn't have. Opening it in the phone's browser on the same Wi-Fi works.
 
 ## What it does
 
@@ -190,7 +141,8 @@ publish.cmd
 
 That creates **`publish\ReceiptTracker.exe`**, a single file containing the API *and* the web app (no .NET or Node needed to run it). Start Ollama, double-click the exe, and your browser opens at http://localhost:5080. Close the console window to stop it.
 
-- Your database and receipt images are saved in a `data` folder next to the exe, so the whole folder is portable.
+- Your database and receipt images are saved in a `data` folder next to the exe, so the whole folder is portable. It starts empty: the sample receipts are Docker only.
+- The exe is unsigned, so SmartScreen warns the first time (**More info → Run anyway**).
 - To change settings (model, Ollama address, port) without rebuilding, put a `settings.json` next to the exe, e.g. `{ "Ollama": { "Model": "qwen3-vl:4b-instruct" } }`.
 - To use it from your phone on the same Wi-Fi: `ReceiptTracker.exe --urls http://0.0.0.0:5080`, then open `http://<your-PC's-IP>:5080`. This makes it reachable by anyone on your network, since there are no logins.
 
@@ -199,8 +151,8 @@ That creates **`publish\ReceiptTracker.exe`**, a single file containing the API 
 The basics are in [Try it](#try-it). More options:
 
 - **What's in it:** the API + web app in one image, with the SQLite database and images in the `app-data` volume. On first start, an empty database is filled with the sample receipts; delete them from the Receipts page whenever you like, and a database that has receipts is never seeded again (`Seed:Enabled`).
-- **GPU for the Ollama container:** add `-f docker-compose.yml -f docker-compose.nvidia.yml` (NVIDIA) or `-f docker-compose.amd.yml` (AMD, Linux only).
-- **A different model:** `MODEL=qwen3-vl:4b-instruct docker compose --profile ai up`. Smaller models are faster but less accurate (only the 8B was scored in the bake-off).
+- **GPU for the Ollama container:** add `-f docker-compose.yml -f docker-compose.nvidia.yml` (NVIDIA) or `-f docker-compose.amd.yml` (AMD, Linux only). Neither file has been tested.
+- **A different model:** `MODEL=qwen3-vl:4b-instruct docker compose --profile ai up`. Smaller models are faster but less accurate (only the 8B was scored in the bake-off), and still slow on a CPU: the 2B took 99s per receipt on a 24-thread CPU and missed the date.
 - `docker compose down -v` also deletes the downloaded model.
 
 ### Downloading the model (without Docker)
