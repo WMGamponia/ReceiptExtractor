@@ -20,7 +20,7 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 | | Takes about | You get |
 |---|---|---|
-| **1. The app with sample data** (below) | ~5 minutes once Docker Desktop is installed (~1 GB download) | Every screen, 47 sample receipts to review and chart. Your own photos can't be read yet |
+| **1. The app with sample data** (below) | ~5 minutes once Docker Desktop is installed (~1 GB download) | Every screen, 58 sample receipts to review and chart. Your own photos can't be read yet |
 | **2. Reading your own receipts** ([below](#reading-your-own-receipts)) | Another 6 GB model download (~10 min at 100 Mbps), plus installing Ollama if you use it outside Docker | Uploads read in ~10–20s each on a good GPU, **minutes each on a CPU** |
 
 If Docker Desktop isn't installed yet, add its install (on Windows it may also set up WSL 2 and ask you to restart).
@@ -39,7 +39,7 @@ If you see `no configuration file provided: not found`, you're in the wrong fold
 
 Then open **http://localhost:5080**. The first build takes a few minutes. What you'll see:
 
-- **Receipts:** 7 real receipts (TINs redacted) waiting for review. Open one to see the photo next to the extracted fields and the VAT check, then confirm it.
+- **Receipts:** 18 real receipts (personal details painted over) waiting for review. Open one to see the photo next to the extracted fields and the VAT check, then confirm it.
 - **Spending:** 40 made-up receipts from the past year, with totals by category, a chart, and **Export CSV**.
 - **Add:** uploading **your own photo won't work yet.** It fails with "Can't reach Ollama" because this command starts the app without the AI model. To have uploads read, see [Reading your own receipts](#reading-your-own-receipts) below.
 

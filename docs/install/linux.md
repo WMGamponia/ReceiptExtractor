@@ -39,7 +39,7 @@ Every `docker compose` command below runs from this `ReceiptExtractor` folder.
 docker compose up --build
 ```
 
-The first build takes a few minutes (~1 GB download). When the log settles, open **http://localhost:5080**. You'll see 7 real receipts waiting for review and 40 made-up ones on the Spending page.
+The first build takes a few minutes (~1 GB download). When the log settles, open **http://localhost:5080**. You'll see 18 real receipts waiting for review and 40 made-up ones on the Spending page.
 
 Uploading your own photo fails with "Can't reach Ollama" at this point: the AI model isn't running yet (step 4).
 
