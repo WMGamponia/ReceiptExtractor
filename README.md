@@ -8,7 +8,7 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 > **Status:** works end to end, from photo to reviewed receipt to spending summary, and ships as Docker, a Windows exe and a demo site. Still growing the test dataset and tuning the prompt; see the [roadmap](ROADMAP.md).
 >
-> _Last updated: 2026-10-01_
+> _Last updated: 2026-11-24_
 
 **Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 
@@ -89,11 +89,11 @@ Both use the same model (`qwen3-vl:8b-instruct` via [Ollama](https://ollama.com)
 
 | Approach | Merchant | Date | Total | VAT | Core accuracy¹ | Median | Slowest |
 |---|---|---|---|---|---|---|---|
-| **Vision model** | 100% | 72% | 89% | 89% | **87%** ✅ | 9.6s | 19.5s |
+| **Vision model** | 100% | 72% | 89% | 89% | **87%** ✅ | 9.6s | 18.9s |
 | Tesseract + LLM | 29% | 0% | 29% | 43% | 19% ❌ | 1.5s | 2.0s |
 
 ¹ Date + merchant + total. Target: ≥ 85%, under 30s per receipt. Full breakdown: [eval/RESULTS.md](eval/RESULTS.md).
-The vision row is the latest run (2026-10-01, 18 receipts, photos with personal details painted over, the current prompt: VAT-exempt sales, discount, service charge, tax tables, "Less VAT" lines, keeping the decimal point, and the transaction date rather than the printer's dates; the original bake-off scored 95%). A merchant counts as right if it's the store or the company name; equivalent names are in `eval/merchant_aliases.json`. The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
+The vision row is the latest run (2026-11-24, 18 receipts, photos with personal details painted over, the current prompt: VAT-exempt sales, discount, service charge, tax tables, "Less VAT" lines, keeping the decimal point, and the transaction date rather than the printer's dates; the original bake-off scored 95%). A merchant counts as right if it's the store or the company name; equivalent names are in `eval/merchant_aliases.json`. The Tesseract row is from the original bake-off. CI re-scores the vision row on every PR (see [Continuous integration](#continuous-integration)).
 
 **Confidence score** (`eval/calibrate_confidence.py`, vision model, 18 receipts): how many misread dates and amounts each threshold catches, and how many fully right receipts it sends to review for nothing. 3 of the 14 misreads are on receipts the VAT/total checks pass.
 
@@ -101,11 +101,11 @@ The vision row is the latest run (2026-10-01, 18 receipts, photos with personal 
 |---|---|---|---|---|
 | 0.85 | 7/14 | 2/3 | 2/3 | 1/11 |
 | 0.90 | 8/14 | 2/3 | 3/3 | 1/11 |
-| **0.95** (chosen) | **9/14** | **2/3** | **3/3** | **2/11** |
-| 0.97 | 11/14 | 3/3 | 3/3 | 2/11 |
-| 0.99 | 13/14 | 3/3 | 3/3 | 6/11 |
+| **0.95** (chosen) | **9/14** | **2/3** | **3/3** | **3/11** |
+| 0.97 | 11/14 | 3/3 | 3/3 | 3/11 |
+| 0.99 | 13/14 | 3/3 | 3/3 | 7/11 |
 
-0.95 was picked on the first run; since the dataset photos were redacted the script suggests 0.90 (same receipts caught, one fewer right one flagged). Full table, the misread fields and why 0.95: [eval/RESULTS.md](eval/RESULTS.md#confidence-score).
+0.95 was picked on the first run; since the dataset photos were redacted the script suggests 0.90 (same receipts caught, two fewer right ones flagged). Full table, the misread fields and why 0.95: [eval/RESULTS.md](eval/RESULTS.md#confidence-score).
 
 PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, but ~85s per receipt, because PaddleOCR can't use an AMD GPU on Windows.
 
