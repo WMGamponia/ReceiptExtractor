@@ -1,10 +1,10 @@
 # Extraction bake-off results
 
-2026-10-01 · model `qwen3-vl:8b-instruct` · 18 receipts
+2026-11-24 · model `qwen3-vl:8b-instruct` · 18 receipts
 
 | Approach | merchant | date | total | vat_amount | vatable_sales | vat_exempt_sales | discount | service_charge | Core (date, merchant, total) | Median s | Slowest s | VAT-check flags |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| vision | 100% | 72% | 89% | 89% | 83% | 94% | 94% | 100% | 87% ✅ | 9.6 | 19.5 ✅ | 4 |
+| vision | 100% | 72% | 89% | 89% | 83% | 94% | 94% | 100% | 87% ✅ | 9.6 | 18.9 ✅ | 4 |
 
 Targets from SCOPE.md: core accuracy ≥ 85%, under 30s per receipt.
 VAT-check flags = results whose VAT breakdown doesn't add up (would be sent to review).
@@ -30,7 +30,7 @@ VAT-check flags = results whose VAT breakdown doesn't add up (would be sent to r
 
 ## Confidence score
 
-From `python eval/calibrate_confidence.py` (2026-10-01, same 18 receipts, re-run after the dataset photos were redacted).
+From `python eval/calibrate_confidence.py` (2026-11-24, same 18 receipts, re-run after the dataset photos were redacted).
 A field's confidence is the probability of its least likely token; a receipt's is its lowest field (`ConfidenceScorer.cs`).
 14 fields were misread, 3 of them on receipts the VAT/total checks didn't flag; 11 receipts were read fully right.
 
@@ -42,9 +42,9 @@ A field's confidence is the probability of its least likely token; a receipt's i
 | 0.80 | 7/14 | 2/3 | 2/3 | 1/11 |
 | 0.85 | 7/14 | 2/3 | 2/3 | 1/11 |
 | 0.90 | 8/14 | 2/3 | 3/3 | 1/11 |
-| **0.95** | **9/14** | **2/3** | **3/3** | **2/11** |
-| 0.97 | 11/14 | 3/3 | 3/3 | 2/11 |
-| 0.99 | 13/14 | 3/3 | 3/3 | 6/11 |
+| **0.95** | **9/14** | **2/3** | **3/3** | **3/11** |
+| 0.97 | 11/14 | 3/3 | 3/3 | 3/11 |
+| 0.99 | 13/14 | 3/3 | 3/3 | 7/11 |
 
 Misread fields and their confidence:
 
@@ -71,7 +71,8 @@ receipts to review (the app scores a little lower than the eval: its prompt also
 
 After the redaction the script suggests 0.90: 0.90 and 0.95 both send all 3 such receipts to review (the gate looks at a
 receipt's lowest field, and WCSI's 0.959 date sits on the same receipt as an 0.876 field), but 0.95 also flags SR Membership,
-read fully right at 0.948. The other flagged right receipt (Flyquip) scored 0.686. Kept at 0.95 for now; re-pick it when more
+read fully right at 0.948, and Lazada, read fully right at 0.923 (it scored 0.983 until its tracking number was
+painted over, so covering part of a photo can shake the model's confidence in a field it still reads right). The other flagged right receipt (Flyquip) scored 0.686. Kept at 0.95 for now; re-pick it when more
 receipts are labeled. The confidently wrong SR Membership date (0.999) from the first run is read right now.
 
 Asking Ollama for token probabilities added about 0.2 s per receipt (measured with and without). The timings in
