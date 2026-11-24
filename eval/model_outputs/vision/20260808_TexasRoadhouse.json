@@ -1,5 +1,5 @@
 {
-  "key": "4eb641e139999b82",
+  "key": "ef7067a16263387b",
   "model": "qwen3-vl:8b-instruct",
   "prediction": {
     "merchant": "TEXAS ROADHOUSE BISTRO ITALIANO CORP",
@@ -11,7 +11,7 @@
     "discount": 602.23,
     "service_charge": 542.01
   },
-  "seconds": 10.11,
+  "seconds": 9.59,
   "confidence": {
     "overall": 1.0,
     "fields": {
