@@ -14,6 +14,8 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 **Stack:** ASP.NET Core (.NET 10) · EF Core + SQLite · Ollama (`qwen3-vl:8b-instruct`) · xUnit · React + TypeScript PWA (Vite) · Python for the extraction eval
 
+**Built with [Claude Code](https://claude.com/claude-code)** as a pair programmer; see [How it was built](#how-it-was-built).
+
 ## What this project shows
 
 - **The approach was chosen by testing, not guessing.** Before building the app, I hand-labeled real receipts and compared OCR + LLM against a vision model on them: 19% vs 86% core accuracy ([bake-off](#extraction-bake-off)).
@@ -145,6 +147,12 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 - **Where it's wrong:** dates on 5 receipts (mostly handwritten; day and month swapped on one), two handwritten totals (`2259.09` read as `2259.89`, an overwritten `750` as `740`), and the VAT split on two receipts (the VAT check flags both). Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
 - **Decimal points in small VAT tables.** On a receipt with a Net / VAT / Gross table (not in the dataset yet), the model read `125.13` as `125` or `12513` depending on the image size. A prompt line ("Keep the decimal point") fixed it at every size, but a new layout could bring it back; the VAT check flags it when it does.
 - **Small sample.** 18 receipts; three have a discount and two a service charge, all restaurants. The dataset is growing toward 30–50.
+
+## How it was built
+
+I built this with [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant. I decided what to build and how to judge it: the bake-off before any app code, the 85% accuracy gate in CI, keeping receipts on your own computer, which model to use, and what to do when the numbers came back. Claude wrote most of the code, tests and docs from those decisions and ran the evals, and every change after the first commit went through a pull request that I merged.
+
+The design and plan for each bigger feature (confidence score, live demo, service charge) are in [`docs/superpowers/`](docs/superpowers/), and [`CLAUDE.md`](CLAUDE.md) holds the standing project rules Claude works from.
 
 ## For developers
 
