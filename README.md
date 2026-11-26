@@ -23,9 +23,21 @@ Snap or upload a Philippine receipt, get a clean record, and see where your mone
 
 ## Try it
 
-**In your browser (nothing to install):** open **https://receipt-tracker-demo.pages.dev**. It runs with made-up receipts, and the sample photos under **Add** replay the real model's answers. Your own photo only gets read while my PC is running the [live demo](docs/live-demo.md#read-on-the-authors-pc-live-demo-on-demand) (the model reads it on my PC and nothing is kept); the rest of the time the site says so.
+### In your browser: the demo site
 
-**On your own PC** (needs [Docker Desktop](https://www.docker.com/products/docker-desktop/)), from a terminal:
+**https://receipt-tracker-demo.pages.dev**, nothing to install.
+
+- **Every screen works**, filled with made-up receipts: review and correct them, confirm them, see the spending summary, export a CSV.
+- **The sample receipts under Add** are made-up photos that the real model read on my PC. Picking one replays its actual answer, mistakes included, after the time it really took.
+
+> [!IMPORTANT]
+> **Reading your own receipt photos only works while my PC is running the live demo.** The demo site has no AI model of its own: your photo is sent to my PC, read there by the real model, and the answer comes back to your browser. Nothing is kept (no database, no storage; the photo is dropped once it's read), and it's limited to 20 photos an hour per visitor.
+>
+> The live demo is only on now and then, since it runs on my own GPU. The banner at the top of the site tells you which: "photos you add are sent to the author's PC" means it's on, "nothing leaves your browser" means it's off. When it's off, the samples and every other screen still work, and you can type a receipt's fields in by hand. To read your own receipts any time, run the app on your own PC (below). How the live demo works: [docs/live-demo.md](docs/live-demo.md#read-on-the-authors-pc-live-demo-on-demand).
+
+### On your own PC
+
+**With Docker** (needs [Docker Desktop](https://www.docker.com/products/docker-desktop/)), from a terminal:
 
 ```bash
 git clone https://github.com/WMGamponia/ReceiptExtractor.git
@@ -39,7 +51,7 @@ After a few minutes' first build (~1 GB download), open **http://localhost:5080*
 
 - **The AI model needs a capable GPU.** Receipts take ~10–20s each on a desktop GPU (tested on an AMD RX 9070 XT) and **minutes on a CPU**. Running the model on a cloud service would drop this requirement, but receipt photos would leave your machine; it's an idea for later, not built.
 - **Built for Philippine receipts:** peso amounts, 12% VAT included in the total, BIR-style receipts. JPG and PNG photos only (no PDFs or HEIC).
-- **The model makes mistakes:** 85% of dates, merchants and totals are right on the 18 labeled receipts (a small sample; see [Known issues](#known-issues)). That's why every receipt goes through a review screen, and suspicious ones are flagged.
+- **The model makes mistakes:** 87% of dates, merchants and totals are right on the 18 labeled receipts (a small sample; see [Known issues](#known-issues)). That's why every receipt goes through a review screen, and suspicious ones are flagged.
 - **One user, no logins.** Anyone who can reach port 5080 sees every receipt, so don't expose it to the internet.
 - **Installing it as a phone app needs HTTPS**, which the local app doesn't have. Opening it in the phone's browser on the same Wi-Fi works.
 
@@ -124,8 +136,8 @@ PaddleOCR + LLM was also tried by hand on one receipt: 4/5 fields after tuning, 
 
 ### Known issues
 
-- **Accuracy is exactly at the target.** Core accuracy is 85% (46 of 54) against the 85% target, so the next prompt change that costs a field will fail CI. The 10 newer receipts (many handwritten) are harder: they score 77%, the original 8 score 96%.
-- **Where it's wrong:** dates on 6 receipts (handwritten ones, a faded one, day and month swapped on one, a YY/MM/DD date), two handwritten totals (`2259.09` read as `2259.89`, an overwritten `750` as `740`), and the VAT split on two receipts (the VAT check flags both). Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
+- **Accuracy is just above the target.** Core accuracy is 87% (47 of 54) against the 85% target, so a prompt change that costs two fields will fail CI.
+- **Where it's wrong:** dates on 5 receipts (mostly handwritten; day and month swapped on one), two handwritten totals (`2259.09` read as `2259.89`, an overwritten `750` as `740`), and the VAT split on two receipts (the VAT check flags both). Each miss is listed in [eval/RESULTS.md](eval/RESULTS.md).
 - **Decimal points in small VAT tables.** On a receipt with a Net / VAT / Gross table (not in the dataset yet), the model read `125.13` as `125` or `12513` depending on the image size. A prompt line ("Keep the decimal point") fixed it at every size, but a new layout could bring it back; the VAT check flags it when it does.
 - **Small sample.** 18 receipts; three have a discount and two a service charge, all restaurants. The dataset is growing toward 30–50.
 
