@@ -157,3 +157,7 @@ The design and plan for each bigger feature (confidence score, live demo, servic
 ## For developers
 
 Running the API, web app and evaluation from source, the Windows exe, more Docker options, the API endpoints, CI and the project layout: **[docs/development.md](docs/development.md)**. How the demo site and live demo are built: [docs/live-demo.md](docs/live-demo.md).
+
+## License
+
+The code is [MIT](LICENSE). The receipt photos in `datasets/` are real receipts (personal details painted over), included only so the evaluation can be re-run; they aren't covered by the MIT license, so please don't reuse them for anything else. The demo site's receipts are made up (`eval/make_demo_receipts.py`) and are MIT like the code. The AI model (`qwen3-vl:8b-instruct`) isn't part of this repo: Ollama downloads it under its own license.
