@@ -1,5 +1,5 @@
 # Runs on every PR and on main. No GPU and no Ollama here: the eval job scores the model outputs
-# committed in eval/model_outputs/ (see "Continuous integration" in README.md).
+# committed in eval/model_outputs/ (see "Continuous integration" in docs/development.md).
 name: CI
 
 on:

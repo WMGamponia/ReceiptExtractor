@@ -4,8 +4,10 @@
 Update README.md in the same change whenever any of these happen:
 - A roadmap step is completed (update the status line and "Last updated" date)
 - `eval/RESULTS.md` changes (copy the new numbers into the bake-off table)
-- A new script, folder, or setup step is added (update "Running" / "Project structure")
-- A notable finding or known issue appears (add it to "What I learned" / "Known issues")
+- A new script, folder, or setup step is added (update the "Running …" / "Project structure" sections, which live in
+  `docs/development.md`; the README only has Try it for users)
+- A notable finding or known issue appears (add it to "What I learned" / "Known issues"; the README keeps the main
+  lessons, smaller ones go in "More things I learned" in `docs/development.md`)
 
 Keep ROADMAP.md checkboxes in sync too.
 
