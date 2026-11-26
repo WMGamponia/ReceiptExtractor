@@ -473,26 +473,28 @@ function MoneyInput(props: { value: string; onChange: (value: string) => void; r
   return (
     <span className="money-input">
       <input inputMode="decimal" value={props.value} onChange={(e) => props.onChange(e.target.value)} required={props.required} />
-      <button
-        type="button"
-        className="shift"
-        onClick={() => shift('left')}
-        disabled={!canShift}
-        title="Move the decimal point left (÷10)"
-        aria-label="Move the decimal point left"
-      >
-        ←.
-      </button>
-      <button
-        type="button"
-        className="shift"
-        onClick={() => shift('right')}
-        disabled={!canShift}
-        title="Move the decimal point right (×10)"
-        aria-label="Move the decimal point right"
-      >
-        .→
-      </button>
+      {canShift && (
+        <span className="shifts">
+          <button
+            type="button"
+            className="shift"
+            onClick={() => shift('left')}
+            title="Move the decimal point left (÷10)"
+            aria-label="Move the decimal point left"
+          >
+            ←.
+          </button>
+          <button
+            type="button"
+            className="shift"
+            onClick={() => shift('right')}
+            title="Move the decimal point right (×10)"
+            aria-label="Move the decimal point right"
+          >
+            .→
+          </button>
+        </span>
+      )}
     </span>
   )
 }
